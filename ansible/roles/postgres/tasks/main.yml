@@ -1,0 +1,79 @@
+---
+# postgresql-common만 먼저 설치해 postgres 유저·그룹을 만들고,
+# Cinder 볼륨을 /var/lib/postgresql에 마운트한 뒤 postgresql 본체를 설치.
+# 이렇게 하면 pg_createcluster가 Cinder 위에 클러스터를 초기화함.
+
+- name: install postgresql-common
+  apt:
+    name: postgresql-common
+    state: present
+    update_cache: true
+
+- name: check if Cinder volume has filesystem
+  command: blkid -s TYPE -o value {{ db_volume_device }}
+  register: db_blkid
+  changed_when: false
+  failed_when: false
+
+- name: format Cinder volume as ext4
+  command: mkfs.ext4 {{ db_volume_device }}
+  when: db_blkid.stdout == ""
+
+- name: mount Cinder volume at postgresql data root
+  mount:
+    path: /var/lib/postgresql
+    src: "{{ db_volume_device }}"
+    fstype: ext4
+    opts: defaults
+    state: mounted
+
+- name: set ownership of postgresql data root
+  file:
+    path: /var/lib/postgresql
+    owner: postgres
+    group: postgres
+    mode: "0755"
+
+- name: install postgresql
+  apt:
+    name: "postgresql-{{ pg_version }}"
+    state: present
+
+- name: install python3-psycopg2 for community.postgresql modules
+  apt:
+    name: python3-psycopg2
+    state: present
+
+- name: ensure postgresql is started
+  service:
+    name: postgresql
+    state: started
+    enabled: true
+
+- name: allow listen on all interfaces
+  lineinfile:
+    path: /etc/postgresql/{{ pg_version }}/main/postgresql.conf
+    regexp: "^#?listen_addresses"
+    line: "listen_addresses = '*'"
+  notify: restart postgresql
+
+- name: allow app subnet in pg_hba.conf
+  lineinfile:
+    path: /etc/postgresql/{{ pg_version }}/main/pg_hba.conf
+    line: "host  {{ vault_db_name }}  {{ vault_db_user }}  {{ engine_subnet_cidr }}  scram-sha-256"
+    insertafter: EOF
+  notify: restart postgresql
+
+- name: create db user
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ vault_db_user }}"
+    password: "{{ vault_db_password }}"
+    state: present
+
+- name: create database
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "{{ vault_db_name }}"
+    owner: "{{ vault_db_user }}"
+    state: present

@@ -78,13 +78,15 @@ assessment-infra/
 
 ### 엔진 컴포넌트 VM
 
+Docker 없음 — 모든 컴포넌트를 인스턴스 위에 직접 설치.
+
 | VM | 컴포넌트 | spec | 상태 | 외부 노출 | 비고 |
 |---|---|---|---|---|---|
-| API | web + migrate(1회) | 4 vCPU / 4 GB | Stateless | 8000 (FIP) | docker-compose의 `migrate` 컨테이너가 `alembic upgrade head` 1회 실행 후 종료. web은 `depends_on: migrate (service_completed_successfully)`. ADR 0005 (원본) |
-| MQ | rabbitmq | 2 vCPU / 2 GB | Stateful | X (사설 5672·15672) | Cinder 볼륨에 RabbitMQ `mnesia` 데이터 디렉토리 마운트 |
-| Cache | redis | 1 vCPU / 1 GB | Stateless | X (사설 6379) | fail-open 정책으로 disk 영속 불필요 — 컨테이너 재시작 시 캐시 cold start (DB·broker가 진실, 캐시는 1분 안 회복). ADR 0001 (원본) |
-| DB | postgres (TimescaleDB) | 2 vCPU / 4 GB | Stateful | X (사설 5432) | Cinder 볼륨에 PostgreSQL `data` 디렉토리 마운트 |
-| Worker | consumer + diagnostic-worker + diagnostic-scheduler | 2 vCPU / 2 GB | Stateless | X | aio-pika 컨슈머 2종(server.* + diagnostic.request) + croniter scheduler 1종 |
+| API | assessment-engine wheel (FastAPI) | 4 vCPU / 4 GB | Stateless | 8000 (FIP) | python3-venv + pip install wheel + systemd. alembic upgrade head는 배포 시 one-shot |
+| MQ | rabbitmq-server (apt) | 2 vCPU / 2 GB | Stateful | X (사설 5672·15672) | Cinder 볼륨에 RabbitMQ mnesia 데이터 디렉토리 마운트 |
+| Cache | redis-server (apt) | 1 vCPU / 1 GB | Stateless | X (사설 6379) | fail-open 정책 — 재시작 시 cold start 허용 |
+| DB | postgresql (apt) | 2 vCPU / 4 GB | Stateful | X (사설 5432) | Cinder 볼륨에 PostgreSQL data 디렉토리 마운트 |
+| Worker | assessment-engine wheel (consumer + scheduler) | 2 vCPU / 2 GB | Stateless | X | api-vm과 동일 wheel — systemd unit만 다름 |
 
 ### Agent VM
 
@@ -95,10 +97,8 @@ assessment-infra/
 ### 도구 파이프라인
 
 0. **Horizon** (웹 UI) — network·subnet·router·bootstrap VM 수동 생성
-1. **Terraform** (Windows jump server PowerShell에서 실행) — SG·keypair·VM·volume·FIP (기존 network은 data source 참조)
-2. **cloud-init** (각 VM user-data) — hostname·docker 설치·machine-id 재생성 등 첫 부팅 자동화
-3. **Ansible** (Windows jump server 또는 bootstrap VM에서 실행) — VM에 SSH 푸시, compose 파일·env·secret 배포, 서비스 기동
-4. **docker compose** (각 VM 내부) — 컴포넌트 컨테이너 기동
+1. **Terraform** (bastion에서 실행) — SG·keypair·VM·volume·FIP (기존 network은 data source 참조)
+2. **Ansible** (bastion에서 실행) — apt 패키지 설치, Cinder 마운트, wheel 배포, systemd unit 등록·기동
 
 ## 단계별 마일스톤
 
@@ -123,15 +123,15 @@ assessment-infra/
 8. instances-agent.tf — Agent VM 3대 + cloud-init user-data
 9. outputs.tf — IP들 (Ansible inventory 입력)
 
-### Ansible 단계 (Terraform 끝난 후, Windows 또는 bootstrap VM에서 실행)
+### Ansible 단계 (Terraform 끝난 후, bastion에서 실행)
 
-10. inventory.tpl.yml — Terraform output 기반 inventory.yml 자동 생성
-11. roles/docker — Docker 설치 (공통 role)
-12. playbook-db.yml — DB VM 기동
-13. playbook-mq.yml — MQ VM 기동
-14. playbook-api.yml — API VM 기동 (wheel install + alembic + systemd) ← CI 완성 의존
-15. playbook-worker.yml — Worker VM 기동
-16. playbook-agent.yml — Agent VM에 agent 바이너리 배포
+10. inventory.yml — Terraform output IP 기반으로 직접 작성
+11. playbook-db.yml — Cinder 마운트 + postgresql apt 설치 + 데이터 디렉토리 이전 + systemd
+12. playbook-mq.yml — Cinder 마운트 + rabbitmq-server apt 설치 + mnesia 디렉토리 이전 + systemd
+13. playbook-cache.yml — redis-server apt 설치 + systemd
+14. playbook-api.yml — python3-venv + wheel install + alembic upgrade head + systemd ← CI 완성 의존
+15. playbook-worker.yml — python3-venv + wheel install + systemd
+16. playbook-agent.yml — agent 바이너리 배포 (추후)
 
 ## 진행 원칙
 

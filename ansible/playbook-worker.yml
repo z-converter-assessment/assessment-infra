@@ -1,0 +1,14 @@
+- name: Worker VM — assessment-engine Worker
+  hosts: worker
+  become: true
+  vars:
+    app_service_name: assessment-worker
+    app_run_alembic: false
+    # TODO: assessment-engine worker entry point 확인 후 수정
+    app_exec_start: "{{ app_venv }}/bin/assessment-worker"
+    app_env:
+      DATABASE_URL: "postgresql://{{ vault_db_user }}:{{ vault_db_password }}@{{ hostvars['db-vm'].ansible_host }}/{{ vault_db_name }}"
+      BROKER_URL: "amqp://{{ vault_mq_user }}:{{ vault_mq_password }}@{{ hostvars['mq-vm'].ansible_host }}/{{ vault_mq_vhost }}"
+      SECRET_KEY: "{{ vault_app_secret_key }}"
+  roles:
+    - app

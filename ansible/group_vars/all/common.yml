@@ -1,0 +1,17 @@
+# Cinder 볼륨 디바이스 (attach 순서상 첫 번째 추가 디스크)
+db_volume_device: /dev/vdb
+mq_volume_device: /dev/vdb
+
+# PostgreSQL
+pg_version: "15"
+engine_subnet_cidr: "10.0.10.64/26"
+
+# App (api-vm · worker-vm 공통)
+app_user: assessment
+app_group: assessment
+app_dir: /opt/assessment
+app_venv: "{{ app_dir }}/venv"
+
+# TODO: assessment-engine CI 완성 후 아래 두 줄 채우기
+# app_wheel_url: "https://github.com/ORG/assessment-engine/releases/download/VERSION/assessment_engine-VERSION-py3-none-any.whl"
+# app_wheel_checksum: "sha256:HASH"

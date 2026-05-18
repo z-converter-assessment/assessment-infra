@@ -1,0 +1,72 @@
+---
+- name: install python3-venv
+  apt:
+    name:
+      - python3
+      - python3-venv
+      - python3-pip
+    state: present
+    update_cache: true
+
+- name: create app group
+  group:
+    name: "{{ app_group }}"
+    state: present
+
+- name: create app user
+  user:
+    name: "{{ app_user }}"
+    group: "{{ app_group }}"
+    home: "{{ app_dir }}"
+    shell: /usr/sbin/nologin
+    system: true
+    create_home: true
+    state: present
+
+- name: create virtualenv
+  command: python3 -m venv {{ app_venv }}
+  args:
+    creates: "{{ app_venv }}/bin/python"
+  become_user: "{{ app_user }}"
+
+# ── CI 의존 구간 (assessment-engine wheel 미완성) ─────────────────
+# CI 완성 후 주석 해제 + common.yml의 app_wheel_url 채우기
+
+# - name: install wheel from release artifact
+#   pip:
+#     name: "{{ app_wheel_url }}"
+#     checksum: "{{ app_wheel_checksum }}"
+#     virtualenv: "{{ app_venv }}"
+#     state: present
+#   become_user: "{{ app_user }}"
+
+# - name: run alembic migrations
+#   command: "{{ app_venv }}/bin/alembic upgrade head"
+#   args:
+#     chdir: "{{ app_dir }}"
+#   become_user: "{{ app_user }}"
+#   when: app_run_alembic | default(false)
+#   environment: "{{ app_env }}"
+# ─────────────────────────────────────────────────────────────────
+
+- name: write environment file
+  template:
+    src: app.env.j2
+    dest: "{{ app_dir }}/{{ app_service_name }}.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0600"
+
+- name: write systemd unit
+  template:
+    src: app.service.j2
+    dest: /etc/systemd/system/{{ app_service_name }}.service
+    mode: "0644"
+  notify: reload systemd
+
+# wheel 설치 후 아래 주석 해제
+# - name: enable and start service
+#   service:
+#     name: "{{ app_service_name }}"
+#     state: started
+#     enabled: true

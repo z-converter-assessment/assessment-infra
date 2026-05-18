@@ -1,0 +1,16 @@
+# 이 파일을 복사해 vault.yml 작성 후 암호화:
+#   cp vault.yml.example vault.yml
+#   ansible-vault encrypt vault.yml
+# 복호화 패스워드: ~/.vault-pass (mode 0400)
+
+# 실제 환경변수 키 이름은 assessment-engine docs/operations/env.md 참조
+
+vault_db_name: assessment
+vault_db_user: assessment
+vault_db_password: CHANGEME
+
+vault_mq_user: assessment
+vault_mq_password: CHANGEME
+vault_mq_vhost: assessment
+
+vault_app_secret_key: CHANGEME

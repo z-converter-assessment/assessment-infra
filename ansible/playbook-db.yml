@@ -1,0 +1,5 @@
+- name: DB VM — PostgreSQL
+  hosts: db
+  become: true
+  roles:
+    - postgres
