@@ -1,0 +1,18 @@
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/terraform.tfvars
+*.tfvars
+!*.tfvars.example
+
+# Ansible
+ansible/inventory.yml
+ansible/group_vars/all/vault.yml
+
+# OS
+.DS_Store
+
+# jetBrain idea
+.idea/
