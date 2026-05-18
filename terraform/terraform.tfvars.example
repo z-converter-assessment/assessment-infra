@@ -1,0 +1,24 @@
+# clouds.yaml의 cloud 이름
+cloud_name = "openstack"
+
+# Horizon에서 수동 생성한 네트워크 자원 이름 (콘솔 → Network → Networks 에서 확인)
+network_name       = "assessment-net"
+engine_subnet_name = "engine-subnet"
+agent_subnet_name  = "agent-subnet"
+
+# Floating IP NAT용 외부 네트워크 이름 (콘솔 → Network → Networks → 외부 네트워크 이름)
+external_network_name = "public"
+
+# OpenStack 콘솔 → Compute → Images 에서 이름 확인
+image_name = "Ubuntu 22.04"
+
+# OpenStack 콘솔 → Compute → Flavors 에서 이름 확인
+flavor_api    = "m1.medium"  # 4 vCPU / 4 GB
+flavor_mq     = "m1.small"   # 2 vCPU / 2 GB
+flavor_db     = "m1.small"   # 2 vCPU / 4 GB
+flavor_worker = "m1.small"   # 2 vCPU / 2 GB
+flavor_agent  = "m1.tiny"    # 1 vCPU / 1 GB
+
+agent_count     = 3
+keypair_name    = "IaC"
+public_key_path = "~/.ssh/IaC.pub"
