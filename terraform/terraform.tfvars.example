@@ -1,24 +1,40 @@
-# clouds.yaml의 cloud 이름
+# clouds.yaml entry 이름
 cloud_name = "openstack"
 
-# Horizon에서 수동 생성한 네트워크 자원 이름 (콘솔 → Network → Networks 에서 확인)
-network_name       = "assessment-net"
-engine_subnet_name = "engine-subnet"
-agent_subnet_name  = "agent-subnet"
+# ── Horizon 수동 생성 자원 이름 ───────────────────────────────────
+# Horizon → Network → Networks 에서 확인
+network_name          = "zconverter-private-net"
+engine_subnet_name    = "assessment-engine"
+agent_subnet_name     = "target-vms"
 
-# Floating IP NAT용 외부 네트워크 이름 (콘솔 → Network → Networks → 외부 네트워크 이름)
-external_network_name = "public"
+# openstack network list --external 로 확인
+external_network_name = "TODO"
 
-# OpenStack 콘솔 → Compute → Images 에서 이름 확인
-image_name = "Ubuntu 22.04"
+# 기존 engine-main · Agent-vm에 적용된 SG 이름
+# openstack server show engine-main -f json | jq '.security_groups'
+bastion_sg_name = "TODO"
 
-# OpenStack 콘솔 → Compute → Flavors 에서 이름 확인
-flavor_api    = "m1.medium"  # 4 vCPU / 4 GB
-flavor_mq     = "m1.small"   # 2 vCPU / 2 GB
-flavor_db     = "m1.small"   # 2 vCPU / 4 GB
-flavor_worker = "m1.small"   # 2 vCPU / 2 GB
-flavor_agent  = "m1.tiny"    # 1 vCPU / 1 GB
+# api-vm 8000 포트 허용 범위 — 폐쇄망이면 0.0.0.0/0 유지
+internal_cidr = "0.0.0.0/0"
 
-agent_count     = 3
-keypair_name    = "IaC"
-public_key_path = "~/.ssh/IaC.pub"
+# ── 이미지 · keypair ──────────────────────────────────────────────
+image_name   = "debian12_x64_uefi_3G"
+keypair_name = "engine-key"
+
+# ── Flavor ────────────────────────────────────────────────────────
+# openstack flavor list 로 확인 후 매핑
+#
+# 환경 내 flavor 목록 (확인 후 업데이트):
+#   c1_m1_r30 : vcpu=1, ram=1GB,  disk=30GB
+#   c2_m2_r40 : vcpu=2, ram=2GB,  disk=40GB
+#   c2_m4_r30 : vcpu=2, ram=4GB,  disk=30GB
+#   c4_m4_r50 : vcpu=4, ram=4GB,  disk=50GB
+
+flavor_api    = "c4_m4_r50"  # 4 vCPU / 4 GB
+flavor_mq     = "c2_m2_r40"  # 2 vCPU / 2 GB
+flavor_cache  = "c1_m1_r30"  # 1 vCPU / 1 GB
+flavor_db     = "c2_m4_r30"  # 2 vCPU / 4 GB
+flavor_worker = "c2_m2_r40"  # 2 vCPU / 2 GB
+flavor_agent  = "c1_m1_r30"  # 1 vCPU / 1 GB  (추후 agent VM 추가 시 사용)
+
+agent_count = 3

@@ -11,7 +11,7 @@
 ## 의존 contract (assessment-engine repo)
 
 | 자산 | 위치 | 용도 | CI 의존 |
-|---|---|---|---|
+|---|---|---|---|성
 | 환경변수 카탈로그 | `docs/operations/env.md` | inject할 키 목록 | X |
 | prod contract | `docs/operations/prod-contract.md` | secret 채널·weak default 거부 정책 | X |
 | 메시지 schema | `docs/architecture/agent.md` | agent ↔ broker 페이로드 | X |
@@ -78,23 +78,19 @@ assessment-infra/
 
 ### 엔진 컴포넌트 VM
 
-| VM | spec | 상태 | 외부 노출 | 비고 |
-|---|---|---|---|---|
-| API | 4 vCPU / 4 GB | Stateless | 8000 (FIP) | RabbitMQ와 lifecycle 분리 위해 별도 |
-| MQ | 2 vCPU / 2 GB | Stateful | X (사설 5672·15672) | Cinder 볼륨에 RabbitMQ 데이터 디렉토리 마운트 |
-| DB | 2 vCPU / 4 GB | Stateful | X | Cinder 볼륨에 PostgreSQL 데이터 디렉토리 마운트 |
-| Worker+Scheduler | 2 vCPU / 2 GB | — | X | diagnose worker + scheduler 합침. 트래픽 증가 시 분리 |
-
-- Alembic 마이그레이션: API VM의 배포 단계 one-shot job (별도 VM X). ADR 0005 정독 후 최종 확정.
-- Redis: 처우 보류. ADR 0001 정독 후 유지/제거 결정.
+| VM | 컴포넌트 | spec | 상태 | 외부 노출 | 비고 |
+|---|---|---|---|---|---|
+| API | web + migrate(1회) | 4 vCPU / 4 GB | Stateless | 8000 (FIP) | docker-compose의 `migrate` 컨테이너가 `alembic upgrade head` 1회 실행 후 종료. web은 `depends_on: migrate (service_completed_successfully)`. ADR 0005 (원본) |
+| MQ | rabbitmq | 2 vCPU / 2 GB | Stateful | X (사설 5672·15672) | Cinder 볼륨에 RabbitMQ `mnesia` 데이터 디렉토리 마운트 |
+| Cache | redis | 1 vCPU / 1 GB | Stateless | X (사설 6379) | fail-open 정책으로 disk 영속 불필요 — 컨테이너 재시작 시 캐시 cold start (DB·broker가 진실, 캐시는 1분 안 회복). ADR 0001 (원본) |
+| DB | postgres (TimescaleDB) | 2 vCPU / 4 GB | Stateful | X (사설 5432) | Cinder 볼륨에 PostgreSQL `data` 디렉토리 마운트 |
+| Worker | consumer + diagnostic-worker + diagnostic-scheduler | 2 vCPU / 2 GB | Stateless | X | aio-pika 컨슈머 2종(server.* + diagnostic.request) + croniter scheduler 1종 |
 
 ### Agent VM
 
-- N대 (학습 단계 3대 시작)
-- 1 vCPU / 1 GB / 20 GB
-- agent-subnet 배치, Floating IP 없음
-- bastion 경유 SSH (ProxyJump)
-- machine-id 충돌 방지 — cloud-init에서 `rm /etc/machine-id && systemd-machine-id-setup` 자동화
+| VM | 컴포넌트 | spec | 상태 | 외부 노출 | 비고 |
+|---|---|---|---|---|---|
+| Agent N대 (학습 3대) | assessment-agent (C) | 1 vCPU / 1 GB / 20 GB | — | X | agent-subnet 배치. Floating IP 없음. bastion 경유 SSH (ProxyJump). cloud-init이 machine-id 재생성 자동화 |
 
 ### 도구 파이프라인
 
