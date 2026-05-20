@@ -25,6 +25,11 @@ resource "openstack_networking_secgroup_v2" "worker_sg" {
   description = "Worker VM — SSH from bastion only"
 }
 
+resource "openstack_networking_secgroup_v2" "agent_sg" {
+  name        = "agent-sg"
+  description = "Agent VM — SSH from bastion, inbound from agent-subnet"
+}
+
 # ── api-sg ingress ────────────────────────────────────────────────
 
 resource "openstack_networking_secgroup_rule_v2" "api_ssh" {
@@ -59,43 +64,33 @@ resource "openstack_networking_secgroup_rule_v2" "mq_ssh" {
   security_group_id = openstack_networking_secgroup_v2.mq_sg.id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_api" {
+resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_engine_subnet" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 5672
   port_range_max    = 5672
-  remote_group_id   = openstack_networking_secgroup_v2.api_sg.id
+  remote_ip_prefix  = data.openstack_networking_subnet_v2.engine.cidr
   security_group_id = openstack_networking_secgroup_v2.mq_sg.id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_worker" {
+resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_agent_subnet" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 5672
   port_range_max    = 5672
-  remote_group_id   = openstack_networking_secgroup_v2.worker_sg.id
+  remote_ip_prefix  = data.openstack_networking_subnet_v2.agent.cidr
   security_group_id = openstack_networking_secgroup_v2.mq_sg.id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "mq_15672_from_api" {
+resource "openstack_networking_secgroup_rule_v2" "mq_15672_from_engine_subnet" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 15672
   port_range_max    = 15672
-  remote_group_id   = openstack_networking_secgroup_v2.api_sg.id
-  security_group_id = openstack_networking_secgroup_v2.mq_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "mq_15672_from_worker" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 15672
-  port_range_max    = 15672
-  remote_group_id   = openstack_networking_secgroup_v2.worker_sg.id
+  remote_ip_prefix  = data.openstack_networking_subnet_v2.engine.cidr
   security_group_id = openstack_networking_secgroup_v2.mq_sg.id
 }
 
@@ -173,4 +168,23 @@ resource "openstack_networking_secgroup_rule_v2" "worker_ssh" {
   port_range_max    = 22
   remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
   security_group_id = openstack_networking_secgroup_v2.worker_sg.id
+}
+
+# ── agent-sg ingress ──────────────────────────────────────────────
+
+resource "openstack_networking_secgroup_rule_v2" "agent_ssh" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 22
+  port_range_max    = 22
+  remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
+  security_group_id = openstack_networking_secgroup_v2.agent_sg.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "agent_all_from_agent_subnet" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  remote_ip_prefix  = data.openstack_networking_subnet_v2.agent.cidr
+  security_group_id = openstack_networking_secgroup_v2.agent_sg.id
 }
