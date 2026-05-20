@@ -1,0 +1,209 @@
+<svg width="1260" height="780" viewBox="0 0 1260 780" xmlns="http://www.w3.org/2000/svg" font-family="'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <marker id="a-blue"   markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#2563EB"/></marker>
+    <marker id="a-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#7C3AED"/></marker>
+    <marker id="a-green"  markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#059669"/></marker>
+    <marker id="a-red"    markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#DC2626"/></marker>
+    <marker id="a-gray"   markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#94A3B8"/></marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1260" height="780" fill="#F8FAFC"/>
+
+  <!-- ── engine-subnet ── -->
+  <rect x="168" y="78" width="992" height="582" rx="14"
+        fill="#EFF6FF" stroke="#3B82F6" stroke-width="2" stroke-dasharray="9,4"/>
+  <text x="186" y="102" font-size="12" font-weight="600" fill="#1D4ED8">
+    engine-subnet (10.0.10.64/26) — terraform/instances.tf · security_groups.tf
+  </text>
+
+  <!-- ── agent-subnet ── -->
+  <rect x="168" y="694" width="420" height="76" rx="12"
+        fill="#F0FDF4" stroke="#16A34A" stroke-width="2" stroke-dasharray="9,4"/>
+  <text x="186" y="714" font-size="12" font-weight="600" fill="#15803D">
+    agent-subnet — terraform/instances-agent.tf
+  </text>
+
+  <!-- ══════════════ NODES ══════════════ -->
+
+  <!-- Internet -->
+  <rect x="544" y="14" width="192" height="46" rx="10"
+        fill="#DBEAFE" stroke="#2563EB" stroke-width="2"/>
+  <text x="640" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#1E3A8A">🌐 외부망 / 사내망</text>
+  <text x="640" y="51" text-anchor="middle" font-size="10" fill="#3B82F6">사내 네트워크에서 접근</text>
+
+  <!-- FIP -->
+  <rect x="564" y="80" width="152" height="34" rx="8"
+        fill="#FEF9C3" stroke="#CA8A04" stroke-width="1.5"/>
+  <text x="640" y="93" text-anchor="middle" font-size="11" font-weight="600" fill="#854D0E">📌 Floating IP (api-vm 전용)</text>
+  <text x="640" y="107" text-anchor="middle" font-size="10" fill="#92400E">floating_ips.tf</text>
+
+  <!-- Bastion -->
+  <rect x="22" y="265" width="130" height="170" rx="10"
+        fill="#FFF7ED" stroke="#EA580C" stroke-width="2"/>
+  <text x="87" y="288" text-anchor="middle" font-size="13" font-weight="700" fill="#9A3412">bastion-vm</text>
+  <line x1="32" y1="295" x2="142" y2="295" stroke="#EA580C" stroke-width="1" opacity="0.4"/>
+  <text x="87" y="312" text-anchor="middle" font-size="10" fill="#7C2D12">Horizon 수동 생성</text>
+  <text x="87" y="326" text-anchor="middle" font-size="10" fill="#7C2D12">FIP 부여</text>
+  <text x="87" y="340" text-anchor="middle" font-size="10" fill="#7C2D12">Terraform · Ansible</text>
+  <text x="87" y="354" text-anchor="middle" font-size="10" fill="#7C2D12">실행 호스트</text>
+  <rect x="32" y="362" width="110" height="20" rx="4" fill="#FED7AA" stroke="#EA580C" stroke-width="1"/>
+  <text x="87" y="376" text-anchor="middle" font-size="10" font-weight="600" fill="#7C2D12">[bastion-sg]  data.tf</text>
+  <text x="87" y="400" text-anchor="middle" font-size="10" fill="#9A3412">SSH :22</text>
+  <text x="87" y="414" text-anchor="middle" font-size="10" fill="#9A3412">→ all VMs</text>
+  <text x="87" y="428" text-anchor="middle" font-size="10" fill="#9CA3AF">(dashed lines)</text>
+
+  <!-- api-vm -->
+  <rect x="496" y="128" width="288" height="128" rx="10"
+        fill="#FFFFFF" stroke="#2563EB" stroke-width="2.5"/>
+  <text x="640" y="152" text-anchor="middle" font-size="14" font-weight="700" fill="#1E3A8A">api-vm</text>
+  <line x1="506" y1="158" x2="774" y2="158" stroke="#2563EB" stroke-width="1" opacity="0.3"/>
+  <text x="640" y="174" text-anchor="middle" font-size="11" fill="#374151">uvicorn :8000</text>
+  <text x="640" y="188" text-anchor="middle" font-size="10" fill="#6B7280">assessment_engine.web.main:app</text>
+  <text x="640" y="202" text-anchor="middle" font-size="10" fill="#6B7280">playbook-api.yml · alembic 자동 실행</text>
+  <rect x="508" y="210" width="264" height="36" rx="6" fill="#EFF6FF" stroke="#3B82F6" stroke-width="1"/>
+  <text x="640" y="223" text-anchor="middle" font-size="10" font-weight="600" fill="#1D4ED8">[api-sg]  4 vCPU / 4 GB · FIP 부여</text>
+  <text x="640" y="238" text-anchor="middle" font-size="9" fill="#3B82F6">ingress 22 ← bastion-sg  |  8000 ← 0.0.0.0/0</text>
+
+  <!-- mq-vm -->
+  <rect x="180" y="308" width="190" height="178" rx="10"
+        fill="#FFFFFF" stroke="#7C3AED" stroke-width="2.5"/>
+  <text x="275" y="332" text-anchor="middle" font-size="14" font-weight="700" fill="#4C1D95">mq-vm</text>
+  <line x1="190" y1="338" x2="360" y2="338" stroke="#7C3AED" stroke-width="1" opacity="0.3"/>
+  <text x="275" y="355" text-anchor="middle" font-size="11" fill="#374151">rabbitmq-server</text>
+  <text x="275" y="369" text-anchor="middle" font-size="11" fill="#374151">:5672 · :15672</text>
+  <text x="275" y="383" text-anchor="middle" font-size="10" fill="#6B7280">playbook-mq.yml</text>
+  <rect x="190" y="391" width="170" height="40" rx="6" fill="#F5F3FF" stroke="#7C3AED" stroke-width="1"/>
+  <text x="275" y="404" text-anchor="middle" font-size="10" font-weight="600" fill="#5B21B6">[mq-sg]  2 vCPU / 2 GB</text>
+  <text x="275" y="417" text-anchor="middle" font-size="9" fill="#6D28D9">22←bastion-sg  5672←api,worker,agent</text>
+  <text x="275" y="428" text-anchor="middle" font-size="9" fill="#6D28D9">15672←api-sg,worker-sg</text>
+  <rect x="190" y="436" width="170" height="42" rx="6" fill="#FFFBEB" stroke="#D97706" stroke-width="1.5"/>
+  <text x="275" y="451" text-anchor="middle" font-size="10" font-weight="600" fill="#92400E">💾 Cinder mq-data  20 GB</text>
+  <text x="275" y="466" text-anchor="middle" font-size="9" fill="#B45309">mount: /var/lib/rabbitmq</text>
+  <text x="275" y="480" text-anchor="middle" font-size="9" fill="#6B7280">volumes.tf</text>
+
+  <!-- cache-vm -->
+  <rect x="462" y="318" width="192" height="148" rx="10"
+        fill="#FFFFFF" stroke="#DC2626" stroke-width="2.5"/>
+  <text x="558" y="342" text-anchor="middle" font-size="14" font-weight="700" fill="#7F1D1D">cache-vm</text>
+  <line x1="472" y1="348" x2="644" y2="348" stroke="#DC2626" stroke-width="1" opacity="0.3"/>
+  <text x="558" y="365" text-anchor="middle" font-size="11" fill="#374151">redis-server :6379</text>
+  <text x="558" y="379" text-anchor="middle" font-size="10" fill="#6B7280">playbook-cache.yml</text>
+  <rect x="472" y="387" width="172" height="40" rx="6" fill="#FFF1F2" stroke="#DC2626" stroke-width="1"/>
+  <text x="558" y="400" text-anchor="middle" font-size="10" font-weight="600" fill="#991B1B">[cache-sg]  1 vCPU / 1 GB</text>
+  <text x="558" y="413" text-anchor="middle" font-size="9" fill="#B91C1C">22←bastion-sg  6379←api-sg,worker-sg</text>
+  <text x="558" y="435" text-anchor="middle" font-size="10" fill="#6B7280">볼륨 없음 (stateless)</text>
+  <text x="558" y="449" text-anchor="middle" font-size="9" fill="#9CA3AF">fail-open 정책</text>
+  <text x="558" y="462" text-anchor="middle" font-size="9" fill="#9CA3AF">volumes.tf 적용 없음</text>
+
+  <!-- db-vm -->
+  <rect x="744" y="308" width="192" height="178" rx="10"
+        fill="#FFFFFF" stroke="#059669" stroke-width="2.5"/>
+  <text x="840" y="332" text-anchor="middle" font-size="14" font-weight="700" fill="#064E3B">db-vm</text>
+  <line x1="754" y1="338" x2="926" y2="338" stroke="#059669" stroke-width="1" opacity="0.3"/>
+  <text x="840" y="355" text-anchor="middle" font-size="11" fill="#374151">postgresql-16 :5432</text>
+  <text x="840" y="369" text-anchor="middle" font-size="11" fill="#374151">+ timescaledb</text>
+  <text x="840" y="383" text-anchor="middle" font-size="10" fill="#6B7280">playbook-db.yml</text>
+  <rect x="754" y="391" width="172" height="40" rx="6" fill="#ECFDF5" stroke="#059669" stroke-width="1"/>
+  <text x="840" y="404" text-anchor="middle" font-size="10" font-weight="600" fill="#065F46">[db-sg]  2 vCPU / 4 GB</text>
+  <text x="840" y="417" text-anchor="middle" font-size="9" fill="#047857">22←bastion-sg  5432←api-sg,worker-sg</text>
+  <rect x="754" y="436" width="172" height="42" rx="6" fill="#FFFBEB" stroke="#D97706" stroke-width="1.5"/>
+  <text x="840" y="451" text-anchor="middle" font-size="10" font-weight="600" fill="#92400E">💾 Cinder db-data  50 GB</text>
+  <text x="840" y="466" text-anchor="middle" font-size="9" fill="#B45309">mount: /var/lib/postgresql</text>
+  <text x="840" y="480" text-anchor="middle" font-size="9" fill="#6B7280">volumes.tf</text>
+
+  <!-- worker-vm -->
+  <rect x="462" y="508" width="192" height="140" rx="10"
+        fill="#FFFFFF" stroke="#B45309" stroke-width="2.5"/>
+  <text x="558" y="532" text-anchor="middle" font-size="14" font-weight="700" fill="#78350F">worker-vm</text>
+  <line x1="472" y1="538" x2="644" y2="538" stroke="#B45309" stroke-width="1" opacity="0.3"/>
+  <text x="558" y="555" text-anchor="middle" font-size="11" fill="#374151">python -m</text>
+  <text x="558" y="569" text-anchor="middle" font-size="11" fill="#374151">assessment_engine.consumer</text>
+  <text x="558" y="583" text-anchor="middle" font-size="10" fill="#6B7280">playbook-worker.yml</text>
+  <rect x="472" y="591" width="172" height="36" rx="6" fill="#FEF9C3" stroke="#B45309" stroke-width="1"/>
+  <text x="558" y="604" text-anchor="middle" font-size="10" font-weight="600" fill="#78350F">[worker-sg]  2 vCPU / 2 GB</text>
+  <text x="558" y="619" text-anchor="middle" font-size="9" fill="#92400E">22 ← bastion-sg only</text>
+  <text x="558" y="638" text-anchor="middle" font-size="9" fill="#9CA3AF">volumes.tf 적용 없음</text>
+
+  <!-- agent-vm -->
+  <rect x="180" y="718" width="396" height="44" rx="8"
+        fill="#FFFFFF" stroke="#16A34A" stroke-width="2"/>
+  <text x="378" y="737" text-anchor="middle" font-size="13" font-weight="700" fill="#14532D">agent-vm × N</text>
+  <line x1="180" y1="743" x2="576" y2="743" stroke="#16A34A" stroke-width="1" opacity="0.3"/>
+  <text x="378" y="757" text-anchor="middle" font-size="10" fill="#374151">
+    assessment-agent (C 실행파일)  [agent-sg]  1 vCPU / 1 GB  · playbook-agent.yml
+  </text>
+
+  <!-- ══════════════ CONNECTIONS ══════════════ -->
+
+  <!-- Internet → FIP -->
+  <line x1="640" y1="60" x2="640" y2="78" stroke="#2563EB" stroke-width="2" marker-end="url(#a-blue)"/>
+
+  <!-- FIP → api-vm -->
+  <line x1="640" y1="114" x2="640" y2="126" stroke="#2563EB" stroke-width="2.5" marker-end="url(#a-blue)"/>
+  <text x="650" y="123" font-size="10" fill="#2563EB">:8000</text>
+
+  <!-- Bastion SSH (dashed, gray) -->
+  <line x1="152" y1="300" x2="494" y2="185" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#a-gray)"/>
+  <line x1="152" y1="318" x2="178" y2="358" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#a-gray)"/>
+  <line x1="152" y1="330" x2="460" y2="370" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#a-gray)"/>
+  <line x1="152" y1="342" x2="742" y2="362" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#a-gray)"/>
+  <line x1="152" y1="354" x2="460" y2="556" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#a-gray)"/>
+  <line x1="87"  y1="435" x2="180" y2="730" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#a-gray)"/>
+
+  <!-- api-vm → mq-vm  (AMQP) -->
+  <path d="M 556 256 Q 460 282 372 306" stroke="#7C3AED" stroke-width="2" fill="none" marker-end="url(#a-purple)"/>
+  <text x="455" y="275" text-anchor="middle" font-size="10" font-weight="600" fill="#7C3AED">AMQP :5672</text>
+
+  <!-- api-vm → cache-vm  (:6379) -->
+  <line x1="610" y1="256" x2="576" y2="316" stroke="#DC2626" stroke-width="2" marker-end="url(#a-red)"/>
+  <text x="565" y="289" font-size="10" font-weight="600" fill="#DC2626">:6379</text>
+
+  <!-- api-vm → db-vm  (SQL) -->
+  <path d="M 718 256 Q 784 278 816 306" stroke="#059669" stroke-width="2" fill="none" marker-end="url(#a-green)"/>
+  <text x="798" y="277" font-size="10" font-weight="600" fill="#059669">SQL :5432</text>
+
+  <!-- worker-vm → mq-vm  (AMQP) -->
+  <path d="M 462 562 Q 390 530 372 486" stroke="#7C3AED" stroke-width="2" fill="none" marker-end="url(#a-purple)"/>
+  <text x="382" y="526" text-anchor="middle" font-size="10" font-weight="600" fill="#7C3AED">AMQP :5672</text>
+
+  <!-- worker-vm → cache-vm  (:6379) vertical -->
+  <line x1="558" y1="508" x2="558" y2="466" stroke="#DC2626" stroke-width="2" marker-end="url(#a-red)"/>
+  <text x="568" y="491" font-size="10" font-weight="600" fill="#DC2626">:6379</text>
+
+  <!-- worker-vm → db-vm  (SQL) -->
+  <path d="M 654 560 Q 716 510 742 478" stroke="#059669" stroke-width="2" fill="none" marker-end="url(#a-green)"/>
+  <text x="720" y="510" font-size="10" font-weight="600" fill="#059669">:5432</text>
+
+  <!-- agent-vm → mq-vm  (AMQP) -->
+  <path d="M 306 718 Q 282 620 278 486" stroke="#7C3AED" stroke-width="2" fill="none" stroke-dasharray="6,2" marker-end="url(#a-purple)"/>
+  <text x="252" y="612" text-anchor="middle" font-size="10" font-weight="600" fill="#7C3AED">AMQP :5672</text>
+
+  <!-- ── Legend ── -->
+  <rect x="994" y="508" width="246" height="148" rx="8" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+  <text x="1117" y="529" text-anchor="middle" font-size="12" font-weight="700" fill="#374151">Legend</text>
+  <line x1="1004" y1="535" x2="1230" y2="535" stroke="#E2E8F0" stroke-width="1"/>
+
+  <line x1="1014" y1="553" x2="1064" y2="553" stroke="#7C3AED" stroke-width="2" marker-end="url(#a-purple)"/>
+  <text x="1073" y="557" font-size="11" fill="#374151">AMQP :5672</text>
+
+  <line x1="1014" y1="573" x2="1064" y2="573" stroke="#059669" stroke-width="2" marker-end="url(#a-green)"/>
+  <text x="1073" y="577" font-size="11" fill="#374151">SQL :5432</text>
+
+  <line x1="1014" y1="593" x2="1064" y2="593" stroke="#DC2626" stroke-width="2" marker-end="url(#a-red)"/>
+  <text x="1073" y="597" font-size="11" fill="#374151">Redis :6379</text>
+
+  <line x1="1014" y1="613" x2="1064" y2="613" stroke="#2563EB" stroke-width="2" marker-end="url(#a-blue)"/>
+  <text x="1073" y="617" font-size="11" fill="#374151">외부 접근 (:8000)</text>
+
+  <line x1="1014" y1="633" x2="1064" y2="633" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#a-gray)"/>
+  <text x="1073" y="637" font-size="11" fill="#374151">SSH :22 (bastion)</text>
+
+  <rect x="1014" y="643" width="50" height="4" rx="2" fill="#FFFBEB" stroke="#D97706" stroke-width="1.5"/>
+  <text x="1073" y="651" font-size="11" fill="#374151">💾 Cinder Volume</text>
+
+  <!-- Footer -->
+  <text x="630" y="773" text-anchor="middle" font-size="10" fill="#94A3B8">
+    terraform/security_groups.tf · terraform/instances.tf · terraform/volumes.tf · ansible/playbook-*.yml · ansible/group_vars/all/
+  </text>
+</svg>
