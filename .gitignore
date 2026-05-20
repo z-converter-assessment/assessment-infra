@@ -11,6 +11,10 @@ terraform/terraform.tfvars
 ansible/inventory.yml
 ansible/group_vars/all/vault.yml
 
+# wheel 배포 파일 — 운영자가 배포 시 ansible/files/wheels/ 에 직접 복사
+ansible/files/wheels/*.whl
+ansible/files/wheels/SHA256SUMS
+
 # OS
 .DS_Store
 

@@ -21,7 +21,7 @@ assessment-engine + agent fleet의 OpenStack 배포 인프라.
 │       │  AMQP·SQL·Redis                                                   │
 │       ▼                                                                   │
 │  mq-vm (2c/2G)      cache-vm (1c/1G)      db-vm (2c/4G)                  │
-│   rabbitmq-server    redis-server           postgresql                    │
+│   rabbitmq-server    redis-server           postgresql-16 + timescaledb   │
 │   5672·15672         6379                   5432                          │
 │   └─ Cinder 20G                             └─ Cinder 50G                │
 │                                                                           │
@@ -57,7 +57,7 @@ Terraform 실행 전 Horizon 콘솔에서 아래가 생성돼 있어야 한다.
 
 ## Bastion 초기 세팅
 
-> OS: Debian 12 (Bookworm)
+> OS: Ubuntu 24.04 LTS (Noble)
 
 ### 1. 필수 도구 설치
 
@@ -92,7 +92,7 @@ ansible-galaxy collection install -r ansible/requirements.yml
 로컬에서 bastion으로 키 전송:
 
 ```bash
-scp engine-key.pem debian@<bastion-fip>:~/.ssh/engine-key.pem
+scp engine-key.pem ubuntu@<bastion-fip>:~/.ssh/engine-key.pem
 ```
 
 bastion에서 권한 설정:
@@ -167,7 +167,7 @@ terraform apply
 | 자원 | 이름 | 비고 |
 |---|---|---|
 | SG | `api-sg` / `mq-sg` / `cache-sg` / `db-sg` / `worker-sg` | — |
-| VM | `api-vm` `mq-vm` `cache-vm` `db-vm` `worker-vm` | engine-subnet |
+| VM | `api-vm` `mq-vm` `cache-vm` `db-vm` `worker-vm` | Ubuntu 24.04, engine-subnet |
 | Cinder | `mq-data` (20G) / `db-data` (50G) | /dev/vdb로 attach |
 | FIP | api-vm에 1개 | external_net에서 발급 |
 
@@ -191,6 +191,31 @@ ansible-vault encrypt group_vars/all/vault.yml
 echo "<패스워드>" > ~/.vault-pass && chmod 0400 ~/.vault-pass
 ```
 
+### wheel 사전 배치 (배포 전 필수)
+
+VM은 외부망 접근 없음 — wheel 파일을 bastion에서 미리 다운로드해 `ansible/files/wheels/`에 넣어야 한다.
+
+```bash
+cd ansible/files/wheels
+
+# GitHub Release에서 다운로드 (bastion은 외부 접근 가능)
+gh release download <TAG> \
+  --repo <ORG>/assessment-engine \
+  --pattern "*.whl" \
+  --pattern "SHA256SUMS"
+
+# 체크섬 검증
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+다운로드 후 `ansible/group_vars/all/engine.yml`의 버전 업데이트:
+
+```yaml
+engine_version: "v0.1.0"   # 실제 받은 태그로 변경
+```
+
+> `ansible/files/wheels/*.whl`과 `SHA256SUMS`는 `.gitignore` 처리됨 — git에 커밋하지 말 것.
+
 ### inventory.yml 자동 생성
 
 ```bash
@@ -199,108 +224,21 @@ echo "<패스워드>" > ~/.vault-pass && chmod 0400 ~/.vault-pass
 ```
 
 > `StrictHostKeyChecking=no`가 inventory에 설정돼 있어 첫 접속 시 known_hosts 확인을 건너뜀.  
-> VM 재생성 후 IP가 바뀌면 `ssh-keygen -R <이전-IP>`로 기존 항목을 제거할 것.
+> VM 재생성 후 IP가 바뀌면 스크립트를 다시 실행해 inventory를 갱신할 것.
 
 ### 실행 순서
 
-`ansible.cfg`에 `inventory`·`vault_password_file`이 설정돼 있으므로 `cd ansible` 후 실행.  
+`ansible.cfg`에 `inventory`·`vault_password_file`·`pipelining`이 설정돼 있으므로 `cd ansible` 후 실행.  
 DB → MQ가 먼저 떠야 api/worker가 접속 가능하므로 순서 지킬 것.
 
 ```bash
 cd ansible
 
-ansible-playbook playbook-db.yml      # 1. DB
-ansible-playbook playbook-mq.yml      # 2. MQ
-ansible-playbook playbook-cache.yml   # 3. Cache
-ansible-playbook playbook-api.yml     # 4. API    ← CI 완성 후
-ansible-playbook playbook-worker.yml  # 5. Worker ← CI 완성 후
-```
-
-> **API·Worker 주의**: `roles/app/tasks/main.yml`의 wheel install·alembic·service start는  
-> assessment-engine CI 완성 전까지 주석 처리 상태. CI 완성 후 아래 절차로 활성화.
-
-### GitHub Release wheel 배포 활성화
-
-assessment-engine 담당자에게 GitHub Release가 올라왔다는 연락이 오면 아래 순서로 활성화한다.
-
-**① 담당자에게 받을 정보**
-
-| 항목 | 예시 |
-|---|---|
-| GitHub repo | `acme-corp/assessment-engine` |
-| Release tag | `v0.2.1` |
-| wheel 파일명 | `assessment_engine-0.2.1-py3-none-any.whl` |
-| SHA256 해시 | `a1b2c3d4...` (SHA256SUMS 파일 또는 직접 전달) |
-
-SHA256SUMS 파일이 Release에 포함돼 있다면 bastion에서 직접 확인 가능:
-
-```bash
-curl -sL https://github.com/<owner>/assessment-engine/releases/download/<tag>/SHA256SUMS
-```
-
-**② `ansible/group_vars/all/common.yml` 수정**
-
-파일 하단의 TODO 두 줄 주석을 해제하고 실제 값으로 채운다:
-
-```yaml
-app_wheel_url: "https://github.com/<owner>/assessment-engine/releases/download/<tag>/assessment_engine-<version>-py3-none-any.whl"
-app_wheel_checksum: "sha256:<SHA256해시값>"
-```
-
-**③ `ansible/roles/app/tasks/main.yml` 주석 해제**
-
-`# ── CI 의존 구간` 블록 안의 두 태스크 주석을 해제한다:
-
-```yaml
-# 해제 대상 1: wheel install (line ~35)
-- name: install wheel from release artifact
-  pip:
-    name: "{{ app_wheel_url }}"
-    checksum: "{{ app_wheel_checksum }}"
-    virtualenv: "{{ app_venv }}"
-    state: present
-  become_user: "{{ app_user }}"
-
-# 해제 대상 2: alembic (line ~43, API VM 전용)
-- name: run alembic migrations
-  command: "{{ app_venv }}/bin/alembic upgrade head"
-  ...
-
-# 해제 대상 3: service start (파일 맨 아래)
-- name: enable and start service
-  service:
-    name: "{{ app_service_name }}"
-    state: started
-    enabled: true
-```
-
-**④ Private repo인 경우 — GitHub Token 추가**
-
-Public repo라면 이 단계는 건너뛴다.
-
-```bash
-# vault.yml에 토큰 추가 (편집 후 재암호화)
-ansible-vault edit group_vars/all/vault.yml
-```
-
-```yaml
-# vault.yml에 추가
-vault_gh_token: "ghp_xxxxxxxxxxxx"
-```
-
-`roles/app/tasks/main.yml`의 `get_url` 태스크에 헤더 추가:
-
-```yaml
-headers:
-  Authorization: "token {{ vault_gh_token }}"
-```
-
-**⑤ 실행**
-
-```bash
-cd ansible
-ansible-playbook playbook-api.yml     # wheel install + alembic + systemd start
-ansible-playbook playbook-worker.yml  # wheel install + systemd start
+ansible-playbook playbook-db.yml      # 1. PostgreSQL 16 + TimescaleDB
+ansible-playbook playbook-mq.yml      # 2. RabbitMQ (cloudsmith)
+ansible-playbook playbook-cache.yml   # 3. Redis
+ansible-playbook playbook-api.yml     # 4. API  (wheel copy → pip install → alembic → systemd)
+ansible-playbook playbook-worker.yml  # 5. Worker (wheel copy → pip install → systemd)
 ```
 
 ### 단일 호스트 접속 확인
@@ -325,17 +263,21 @@ assessment-infra/
 │   ├── variables.tf
 │   ├── data.tf               # Horizon 생성 자원 data source
 │   ├── security_groups.tf    # SG 5개 + ingress rule
-│   ├── instances.tf          # Port 5개 + VM 5대
+│   ├── instances.tf          # Port 5개 + VM 5대 (Ubuntu 24.04)
 │   ├── volumes.tf            # Cinder 2개 + attach
 │   ├── floating_ips.tf       # api-vm FIP
 │   ├── outputs.tf            # 사설 IP 5개 + FIP
 │   └── terraform.tfvars.example
 └── ansible/
-    ├── ansible.cfg           # inventory·vault_password_file 기본값
-    ├── inventory.yml         # gen-inventory.sh로 생성
+    ├── ansible.cfg           # inventory·vault_password_file·pipelining 설정
+    ├── inventory.yml         # gen-inventory.sh로 생성 (gitignore)
     ├── requirements.yml
+    ├── files/
+    │   └── wheels/           # 배포 전 운영자가 wheel·SHA256SUMS를 여기 배치 (gitignore)
     ├── group_vars/all/
-    │   ├── common.yml        # engine_subnet_cidr·pg_version 등 비밀 아닌 변수
+    │   ├── common.yml        # engine_subnet_cidr·pg_version 등 공통 변수
+    │   ├── engine.yml        # engine_version·engine_wheel_file
+    │   ├── zdm.yml           # zdm_default_ip·zdm_default_user
     │   └── vault.yml.example
     ├── playbook-db.yml
     ├── playbook-mq.yml
@@ -343,10 +285,10 @@ assessment-infra/
     ├── playbook-api.yml
     ├── playbook-worker.yml
     └── roles/
-        ├── postgres/         # Cinder 마운트 → postgresql-{version} 설치 → DB·유저 생성
-        ├── rabbitmq/         # 설치 → Cinder 마운트 → vhost·유저 설정
+        ├── postgres/         # Cinder 마운트 → postgresql-16 + timescaledb 설치 → DB·유저 생성
+        ├── rabbitmq/         # cloudsmith repo → Erlang + RabbitMQ 설치 → Cinder 마운트 → vhost·유저 설정
         ├── redis/            # apt install + bind 0.0.0.0
-        └── app/              # venv + wheel(CI 대기) + systemd unit
+        └── app/              # python3.12 + acl → venv → wheel copy → pip install → systemd
 ```
 
 ---
@@ -360,6 +302,7 @@ assessment-infra/
 | Ansible Vault password | `~/.vault-pass` | 0400 | 제외 |
 | Terraform state | `terraform/terraform.tfstate` | — | 제외 |
 | Vault 암호화 파일 | `ansible/group_vars/all/vault.yml` | — | 포함 (암호화) |
+| wheel 배포 파일 | `ansible/files/wheels/` | — | 제외 |
 
 Terraform state는 현재 bastion 로컬 보관.  
 멀티 사용자 단계 진입 시 OpenStack Swift backend로 이전 예정.
