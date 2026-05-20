@@ -1,0 +1,3 @@
+# ZDM (회사 제공 실행파일) 배포 설정
+zdm_default_ip: ""    # TODO: ZDM 서버/호스트 IP
+zdm_default_user: ""  # TODO: ZDM 실행 계정

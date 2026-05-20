@@ -1,0 +1,7 @@
+# assessment-engine release 버전
+# 배포 전 첫 release tag로 채우기 (예: v0.1.0)
+engine_version: "v0.x.x"
+
+# 배포 방식: Option A — 운영자가 ansible/files/wheels/ 에 wheel을 사전 복사
+# wheel 파일명 패턴 (engine_version 변수 자동 삽입)
+engine_wheel_file: "assessment_engine-{{ engine_version }}-py3-none-any.whl"

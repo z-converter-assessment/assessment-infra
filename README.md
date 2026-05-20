@@ -217,8 +217,91 @@ ansible-playbook playbook-worker.yml  # 5. Worker ← CI 완성 후
 ```
 
 > **API·Worker 주의**: `roles/app/tasks/main.yml`의 wheel install·alembic·service start는  
-> assessment-engine CI 완성 전까지 주석 처리 상태. CI 완성 후 `common.yml`의  
-> `app_wheel_url` 채우고 주석 해제.
+> assessment-engine CI 완성 전까지 주석 처리 상태. CI 완성 후 아래 절차로 활성화.
+
+### GitHub Release wheel 배포 활성화
+
+assessment-engine 담당자에게 GitHub Release가 올라왔다는 연락이 오면 아래 순서로 활성화한다.
+
+**① 담당자에게 받을 정보**
+
+| 항목 | 예시 |
+|---|---|
+| GitHub repo | `acme-corp/assessment-engine` |
+| Release tag | `v0.2.1` |
+| wheel 파일명 | `assessment_engine-0.2.1-py3-none-any.whl` |
+| SHA256 해시 | `a1b2c3d4...` (SHA256SUMS 파일 또는 직접 전달) |
+
+SHA256SUMS 파일이 Release에 포함돼 있다면 bastion에서 직접 확인 가능:
+
+```bash
+curl -sL https://github.com/<owner>/assessment-engine/releases/download/<tag>/SHA256SUMS
+```
+
+**② `ansible/group_vars/all/common.yml` 수정**
+
+파일 하단의 TODO 두 줄 주석을 해제하고 실제 값으로 채운다:
+
+```yaml
+app_wheel_url: "https://github.com/<owner>/assessment-engine/releases/download/<tag>/assessment_engine-<version>-py3-none-any.whl"
+app_wheel_checksum: "sha256:<SHA256해시값>"
+```
+
+**③ `ansible/roles/app/tasks/main.yml` 주석 해제**
+
+`# ── CI 의존 구간` 블록 안의 두 태스크 주석을 해제한다:
+
+```yaml
+# 해제 대상 1: wheel install (line ~35)
+- name: install wheel from release artifact
+  pip:
+    name: "{{ app_wheel_url }}"
+    checksum: "{{ app_wheel_checksum }}"
+    virtualenv: "{{ app_venv }}"
+    state: present
+  become_user: "{{ app_user }}"
+
+# 해제 대상 2: alembic (line ~43, API VM 전용)
+- name: run alembic migrations
+  command: "{{ app_venv }}/bin/alembic upgrade head"
+  ...
+
+# 해제 대상 3: service start (파일 맨 아래)
+- name: enable and start service
+  service:
+    name: "{{ app_service_name }}"
+    state: started
+    enabled: true
+```
+
+**④ Private repo인 경우 — GitHub Token 추가**
+
+Public repo라면 이 단계는 건너뛴다.
+
+```bash
+# vault.yml에 토큰 추가 (편집 후 재암호화)
+ansible-vault edit group_vars/all/vault.yml
+```
+
+```yaml
+# vault.yml에 추가
+vault_gh_token: "ghp_xxxxxxxxxxxx"
+```
+
+`roles/app/tasks/main.yml`의 `get_url` 태스크에 헤더 추가:
+
+```yaml
+headers:
+  Authorization: "token {{ vault_gh_token }}"
+```
+
+**⑤ 실행**
+
+```bash
+cd ansible
+ansible-playbook playbook-api.yml     # wheel install + alembic + systemd start
+ansible-playbook playbook-worker.yml  # wheel install + systemd start
+```
 
 ### 단일 호스트 접속 확인
 

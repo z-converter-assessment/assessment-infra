@@ -1,12 +1,33 @@
 ---
 # 설치 → 정지 → Cinder 마운트 → 재기동 순서.
 # 신규 설치라 기존 데이터 없음 — 마운트 후 mnesia가 빈 Cinder 위에 재초기화됨.
+# Ubuntu default repo의 RabbitMQ는 구버전이라 cloudsmith repo 사용.
 
-- name: install rabbitmq-server
-  apt:
-    name: rabbitmq-server
+- name: add RabbitMQ team apt signing key
+  apt_key:
+    url: https://keys.openpgp.org/vks/v1/by-fingerprint/0A9AF2115F4687BD29803A206B73A36E6026DFCA
     state: present
+
+- name: add Cloudsmith Erlang apt repository
+  apt_repository:
+    repo: "deb https://ppa1.rabbitmq.com/rabbitmq/rabbitmq-erlang/deb/debian bookworm main"
+    state: present
+    filename: rabbitmq-erlang
+
+- name: add Cloudsmith RabbitMQ server apt repository
+  apt_repository:
+    repo: "deb https://ppa1.rabbitmq.com/rabbitmq/rabbitmq-server/deb/debian bookworm main"
+    state: present
+    filename: rabbitmq-server
     update_cache: true
+
+- name: install Erlang and rabbitmq-server
+  apt:
+    name:
+      - erlang
+      - rabbitmq-server
+    state: present
+    update_cache: false
 
 - name: stop rabbitmq before volume mount
   service:

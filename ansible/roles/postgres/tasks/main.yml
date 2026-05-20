@@ -3,11 +3,23 @@
 # Cinder 볼륨을 /var/lib/postgresql에 마운트한 뒤 postgresql 본체를 설치.
 # 이렇게 하면 pg_createcluster가 Cinder 위에 클러스터를 초기화함.
 
+- name: add TimescaleDB apt signing key
+  apt_key:
+    url: https://packagecloud.io/timescale/timescaledb/gpgkey
+    state: present
+
+- name: add TimescaleDB apt repository
+  apt_repository:
+    repo: "deb https://packagecloud.io/timescale/timescaledb/debian/ bookworm main"
+    state: present
+    filename: timescaledb
+    update_cache: true
+
 - name: install postgresql-common
   apt:
     name: postgresql-common
     state: present
-    update_cache: true
+    update_cache: false
 
 - name: check if Cinder volume has filesystem
   command: blkid -s TYPE -o value {{ db_volume_device }}
@@ -34,9 +46,11 @@
     group: postgres
     mode: "0755"
 
-- name: install postgresql
+- name: install postgresql and timescaledb
   apt:
-    name: "postgresql-{{ pg_version }}"
+    name:
+      - "postgresql-{{ pg_version }}"
+      - "timescaledb-2-postgresql-{{ pg_version }}"
     state: present
 
 - name: install python3-psycopg2 for community.postgresql modules
@@ -55,6 +69,13 @@
     path: /etc/postgresql/{{ pg_version }}/main/postgresql.conf
     regexp: "^#?listen_addresses"
     line: "listen_addresses = '*'"
+  notify: restart postgresql
+
+- name: enable timescaledb in shared_preload_libraries
+  lineinfile:
+    path: /etc/postgresql/{{ pg_version }}/main/postgresql.conf
+    regexp: "^#?shared_preload_libraries"
+    line: "shared_preload_libraries = 'timescaledb'"
   notify: restart postgresql
 
 - name: allow app subnet in pg_hba.conf
