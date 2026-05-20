@@ -64,33 +64,53 @@ resource "openstack_networking_secgroup_rule_v2" "mq_ssh" {
   security_group_id = openstack_networking_secgroup_v2.mq_sg.id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_engine_subnet" {
+resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_api" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 5672
   port_range_max    = 5672
-  remote_ip_prefix  = data.openstack_networking_subnet_v2.engine.cidr
+  remote_group_id   = openstack_networking_secgroup_v2.api_sg.id
   security_group_id = openstack_networking_secgroup_v2.mq_sg.id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_agent_subnet" {
+resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_worker" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 5672
   port_range_max    = 5672
-  remote_ip_prefix  = data.openstack_networking_subnet_v2.agent.cidr
+  remote_group_id   = openstack_networking_secgroup_v2.worker_sg.id
   security_group_id = openstack_networking_secgroup_v2.mq_sg.id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "mq_15672_from_engine_subnet" {
+resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_agent" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 5672
+  port_range_max    = 5672
+  remote_group_id   = openstack_networking_secgroup_v2.agent_sg.id
+  security_group_id = openstack_networking_secgroup_v2.mq_sg.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "mq_15672_from_api" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 15672
   port_range_max    = 15672
-  remote_ip_prefix  = data.openstack_networking_subnet_v2.engine.cidr
+  remote_group_id   = openstack_networking_secgroup_v2.api_sg.id
+  security_group_id = openstack_networking_secgroup_v2.mq_sg.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "mq_15672_from_worker" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 15672
+  port_range_max    = 15672
+  remote_group_id   = openstack_networking_secgroup_v2.worker_sg.id
   security_group_id = openstack_networking_secgroup_v2.mq_sg.id
 }
 
