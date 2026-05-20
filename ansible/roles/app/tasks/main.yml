@@ -65,6 +65,12 @@
     mode: "0644"
   notify: reload systemd
 
+- name: create migrations symlink (_migrations → migrations)
+  file:
+    src: "{{ app_venv }}/lib/python3.12/site-packages/assessment_engine/_migrations"
+    dest: "{{ app_venv }}/lib/python3.12/site-packages/assessment_engine/migrations"
+    state: link
+
 - name: run alembic migrations
   command: >
     {{ app_venv }}/bin/alembic
