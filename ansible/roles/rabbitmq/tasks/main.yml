@@ -1,7 +1,7 @@
 ---
 # 설치 → 정지 → Cinder 마운트 → 재기동 순서.
 # 신규 설치라 기존 데이터 없음 — 마운트 후 mnesia가 빈 Cinder 위에 재초기화됨.
-# Ubuntu default repo의 RabbitMQ는 구버전이라 cloudsmith repo 사용.
+# cloudsmith(ppa1.rabbitmq.com)는 폐쇄망 방화벽에 막혀 있어 Ubuntu universe repo 사용.
 
 - name: install Erlang and rabbitmq-server
   apt:

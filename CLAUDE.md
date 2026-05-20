@@ -34,8 +34,11 @@ assessment-infra/
 ├── README.md
 ├── .gitignore
 ├── docs/
-│   ├── adr/                          # 본인이 작성하는 의사결정 기록
-│   └── architecture.md               # 네트워크·VM 토폴로지 그림
+│   ├── adr/                          # 의사결정 기록
+│   └── operations/
+│       ├── troubleshooting.md        # 배포 트러블슈팅 기록
+│       ├── env.md                    # 환경변수 카탈로그
+│       └── release.md                # wheel 배포 절차
 ├── terraform/
 │   ├── versions.tf
 │   ├── providers.tf
@@ -172,6 +175,23 @@ Docker 없음 — 모든 컴포넌트를 인스턴스 위에 직접 설치.
 - VM 재생성 시 known_hosts 충돌 → `ssh-keygen -R`로 해소
 - machine-id 충돌은 application-level dedup 문제, snapshot 복제 시 빈번
 
+### assessment-engine 패키지 구조 (배포 시 참고)
+
+- API 엔트리포인트: `assessment_engine.web.main:app` — uvicorn ExecStart에 사용
+- Worker 엔트리포인트: `python -m assessment_engine.consumer` — console script 없음, `__main__.py` 방식
+- 환경변수: pydantic-settings 기반 개별 키 사용. `DATABASE_URL`/`BROKER_URL` 아님
+  - DB: `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+  - MQ: `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_VHOST`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`
+  - Cache: `REDIS_HOST`, `REDIS_PORT`
+- Alembic: `_alembic.ini` (언더스코어), `_migrations/` (언더스코어) — `migrations/` symlink 필요
+- wheel 파일명: `assessment_engine-{version}-py3-none-any.whl` — `v` 접두사 없음
+
+### 환경 제약 (폐쇄망)
+
+- `ppa1.rabbitmq.com` (Cloudsmith) 차단 → RabbitMQ는 Ubuntu universe repo 사용
+- TimescaleDB는 `postgresql-16 >= 16.14` 요구 → Ubuntu 기본 repo 16.13 부족 → PGDG repo 필수
+- VM은 외부 인터넷 직접 접근 불가 → wheel은 bastion에서 다운로드 후 `ansible/files/wheels/`에 복사
+
 ## 보류된 결정
 
 다음 항목들은 학습 진행 중 결정. 미결정 상태로 코드 작성 진행 가능하지만 해당 시점 도달 전 확정.
@@ -179,7 +199,7 @@ Docker 없음 — 모든 컴포넌트를 인스턴스 위에 직접 설치.
 | 항목 | 결정 대기 사유 | 영향 |
 |---|---|---|
 | Redis VM 유무 | ADR 0001 (redis-decoupling) 정독 필요 — fail-open 정책 채택 후 Redis 역할 축소. 사설망 단일 인스턴스로 충분한지 검토 | volumes.tf에 Redis 볼륨 필요 여부, MQ VM과 합칠지 분리할지 |
-| Alembic 실행 위치 | ADR 0005 (db-schema-management) 정독 필요 — migrate init-container 패턴. API VM의 one-shot job vs 별도 migrate VM | playbook-api.yml의 단계 |
+| Alembic 실행 위치 | **결정 완료** — API VM lifespan 기동 시 one-shot 실행 (app.lifespan에 내장). 별도 migrate VM 불필요 | - |
 | Worker·Scheduler 분리 | 현 트래픽에서 합쳐도 OK 결정. 추후 LLM 도입 시 worker만 분리 | instances-engine.tf 갱신 |
 | Terraform state remote backend | bastion 로컬 시작. 멀티 사용자 단계 진입 시 OpenStack Swift backend로 이전 | versions.tf backend 블록 추가 |
 | Agent fleet 별도 repo 분리 | 학습 마친 후 검토. 본 레포에 함께 유지 시작 | 디렉토리 구조 |
@@ -202,14 +222,14 @@ assessment-engine repo의 CI workflow (release.yml)가 완성되면 `v*` tag pus
 | placeholder | 채울 값 | 출처 |
 |---|---|---|
 | `assessment_engine_repo` | `<owner>/assessment-engine` | 엔진 담당자 확인 |
-| `assessment_engine_version` | `v0.1.0` (첫 release tag) | CI 첫 발사 후 GitHub Releases 페이지 |
+| `assessment_engine_version` | `0.1.0` (첫 release tag, v 접두사 없음) | CI 첫 발사 후 GitHub Releases 페이지 |
 | `wheel_url_pattern` | `https://github.com/<owner>/assessment-engine/releases/download/{version}/assessment_engine-{version}-py3-none-any.whl` | assessment-engine `docs/operations/release.md` |
 | `sha256sums_url` | 동일 패턴의 `SHA256SUMS` | 동일 |
 | `gh_token` | GitHub PAT (private repo면) | 운영자 별도 발급 |
 
 ### 채울 위치
 
-- `ansible/group_vars/all/common.yml`에 `assessment_engine_version` 변수 박음
+- `ansible/group_vars/all/engine.yml`의 `engine_version` 값 업데이트
 - `ansible/playbook-api.yml`에 wheel install task 추가:
   - get_url로 wheel 다운로드
   - sha256 검증

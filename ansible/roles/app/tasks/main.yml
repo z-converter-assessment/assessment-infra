@@ -76,6 +76,8 @@
     {{ app_venv }}/bin/alembic
     -c {{ app_venv }}/lib/python3.12/site-packages/assessment_engine/_alembic.ini
     upgrade head
+  args:
+    chdir: "{{ app_dir }}"
   become_user: "{{ app_user }}"
   when: app_run_alembic | default(false)
   environment: "{{ app_env }}"
