@@ -3,6 +3,18 @@
 # Cinder 볼륨을 /var/lib/postgresql에 마운트한 뒤 postgresql 본체를 설치.
 # 이렇게 하면 pg_createcluster가 Cinder 위에 클러스터를 초기화함.
 
+- name: add PGDG apt signing key
+  apt_key:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    state: present
+
+- name: add PGDG apt repository
+  apt_repository:
+    repo: "deb https://apt.postgresql.org/pub/repos/apt noble-pgdg main"
+    state: present
+    filename: pgdg
+    update_cache: true
+
 - name: add TimescaleDB apt signing key
   apt_key:
     url: https://packagecloud.io/timescale/timescaledb/gpgkey
