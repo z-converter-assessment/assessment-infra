@@ -8,7 +8,7 @@
     state: present
     update_cache: true
 
-- name: create app group3
+- name: create app group
   group:
     name: "{{ app_group }}"
     state: present

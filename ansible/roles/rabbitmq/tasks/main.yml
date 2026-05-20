@@ -3,9 +3,19 @@
 # 신규 설치라 기존 데이터 없음 — 마운트 후 mnesia가 빈 Cinder 위에 재초기화됨.
 # Ubuntu default repo의 RabbitMQ는 구버전이라 cloudsmith repo 사용.
 
-- name: add RabbitMQ team apt signing key
+- name: add RabbitMQ team signing key
   apt_key:
     url: https://keys.openpgp.org/vks/v1/by-fingerprint/0A9AF2115F4687BD29803A206B73A36E6026DFCA
+    state: present
+
+- name: add Cloudsmith Erlang repo signing key
+  apt_key:
+    url: https://github.com/rabbitmq/signing-keys/releases/download/3.0/cloudsmith.rabbitmq-erlang.E495BB49CC4BBE5B.key
+    state: present
+
+- name: add Cloudsmith RabbitMQ server repo signing key
+  apt_key:
+    url: https://github.com/rabbitmq/signing-keys/releases/download/3.0/cloudsmith.rabbitmq-server.9F4587F226208342.key
     state: present
 
 - name: add Cloudsmith Erlang apt repository
