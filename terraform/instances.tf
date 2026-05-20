@@ -57,7 +57,7 @@ resource "openstack_networking_port_v2" "worker_port" {
 
 resource "openstack_compute_instance_v2" "api_vm" {
   name        = "api-vm"
-  image_id    = data.openstack_images_image_v2.debian12.id
+  image_id    = data.openstack_images_image_v2.ubuntu24.id
   flavor_name = var.flavor_api
   key_pair    = var.keypair_name
 
@@ -68,7 +68,7 @@ resource "openstack_compute_instance_v2" "api_vm" {
 
 resource "openstack_compute_instance_v2" "mq_vm" {
   name        = "mq-vm"
-  image_id    = data.openstack_images_image_v2.debian12.id
+  image_id    = data.openstack_images_image_v2.ubuntu24.id
   flavor_name = var.flavor_mq
   key_pair    = var.keypair_name
 
@@ -79,7 +79,7 @@ resource "openstack_compute_instance_v2" "mq_vm" {
 
 resource "openstack_compute_instance_v2" "cache_vm" {
   name        = "cache-vm"
-  image_id    = data.openstack_images_image_v2.debian12.id
+  image_id    = data.openstack_images_image_v2.ubuntu24.id
   flavor_name = var.flavor_cache
   key_pair    = var.keypair_name
 
@@ -90,7 +90,7 @@ resource "openstack_compute_instance_v2" "cache_vm" {
 
 resource "openstack_compute_instance_v2" "db_vm" {
   name        = "db-vm"
-  image_id    = data.openstack_images_image_v2.debian12.id
+  image_id    = data.openstack_images_image_v2.ubuntu24.id
   flavor_name = var.flavor_db
   key_pair    = var.keypair_name
 
@@ -101,7 +101,7 @@ resource "openstack_compute_instance_v2" "db_vm" {
 
 resource "openstack_compute_instance_v2" "worker_vm" {
   name        = "worker-vm"
-  image_id    = data.openstack_images_image_v2.debian12.id
+  image_id    = data.openstack_images_image_v2.ubuntu24.id
   flavor_name = var.flavor_worker
   key_pair    = var.keypair_name
 

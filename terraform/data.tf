@@ -17,7 +17,7 @@ data "openstack_networking_network_v2" "external" {
   external = true
 }
 
-data "openstack_images_image_v2" "debian12" {
+data "openstack_images_image_v2" "ubuntu24" {
   name        = var.image_name
   most_recent = true
 }
