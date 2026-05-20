@@ -66,9 +66,10 @@
   notify: reload systemd
 
 - name: run alembic migrations
-  command: "{{ app_venv }}/bin/alembic upgrade head"
-  args:
-    chdir: "{{ app_dir }}"
+  command: >
+    {{ app_venv }}/bin/alembic
+    -c {{ app_venv }}/lib/python3.12/site-packages/assessment_engine/_alembic.ini
+    upgrade head
   become_user: "{{ app_user }}"
   when: app_run_alembic | default(false)
   environment: "{{ app_env }}"
