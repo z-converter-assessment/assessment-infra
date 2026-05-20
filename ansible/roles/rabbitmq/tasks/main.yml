@@ -65,15 +65,11 @@
   changed_when: "'already exists' not in user_result.stderr"
   failed_when: user_result.rc != 0 and 'already exists' not in user_result.stderr
 
-- name: check current user permissions
-  command: rabbitmqctl list_user_permissions {{ vault_mq_user }}
-  register: current_perms
-  changed_when: false
-  failed_when: false
-
 - name: set user permissions on vhost
   command: rabbitmqctl set_permissions -p {{ vault_mq_vhost }} {{ vault_mq_user }} ".*" ".*" ".*"
-  when: vault_mq_vhost not in current_perms.stdout
+  register: perms_result
+  changed_when: true
+  failed_when: perms_result.rc != 0
 
 - name: delete default guest user
   command: rabbitmqctl delete_user guest
