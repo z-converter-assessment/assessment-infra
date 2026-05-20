@@ -7,8 +7,20 @@
     # TODO: assessment-engine worker entry point 확인 후 수정
     app_exec_start: "{{ app_venv }}/bin/assessment-worker"
     app_env:
-      DATABASE_URL: "postgresql://{{ vault_db_user }}:{{ vault_db_password }}@{{ hostvars['db-vm'].ansible_host }}/{{ vault_db_name }}"
-      BROKER_URL: "amqp://{{ vault_mq_user }}:{{ vault_mq_password }}@{{ hostvars['mq-vm'].ansible_host }}/{{ vault_mq_vhost }}"
+      POSTGRES_HOST: "{{ hostvars['db-vm'].ansible_host }}"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: "{{ vault_db_name }}"
+      POSTGRES_USER: "{{ vault_db_user }}"
+      POSTGRES_PASSWORD: "{{ vault_db_password }}"
+      RABBITMQ_HOST: "{{ hostvars['mq-vm'].ansible_host }}"
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_VHOST: "{{ vault_mq_vhost }}"
+      RABBITMQ_USER: "{{ vault_mq_user }}"
+      RABBITMQ_PASSWORD: "{{ vault_mq_password }}"
+      REDIS_HOST: "{{ hostvars['cache-vm'].ansible_host }}"
+      REDIS_PORT: "6379"
       SECRET_KEY: "{{ vault_app_secret_key }}"
+      ZDM_DEFAULT_IP: "{{ zdm_default_ip }}"
+      ZDM_DEFAULT_USER: "{{ zdm_default_user }}"
   roles:
     - app
