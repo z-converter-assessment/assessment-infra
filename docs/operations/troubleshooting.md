@@ -283,6 +283,129 @@ sudo -u assessment bash -c '
 
 ---
 
+---
+
+## 10. uvicorn `Could not import module "assessment_engine.main"`
+
+**증상**
+```
+ERROR: Error loading ASGI app. Could not import module "assessment_engine.main".
+```
+
+**원인**  
+`playbook-api.yml`의 `app_exec_start`가 `assessment_engine.main:app`으로 설정돼 있었는데, 실제 wheel 패키지 구조는 아래와 같다.
+
+```
+assessment_engine/
+├── web/main.py        ← FastAPI app (실제 엔트리포인트)
+├── consumer/main.py   ← Worker
+└── diagnostic/main.py
+```
+
+최상위에 `main.py`가 없으므로 import 실패.
+
+**확인 방법**
+```bash
+find /opt/assessment/venv/lib/python3.12/site-packages/assessment_engine/ -name "main.py"
+```
+
+**해결**  
+`playbook-api.yml` `app_exec_start` 수정:
+```yaml
+# 변경 전
+app_exec_start: "{{ app_venv }}/bin/uvicorn assessment_engine.main:app ..."
+
+# 변경 후
+app_exec_start: "{{ app_venv }}/bin/uvicorn assessment_engine.web.main:app ..."
+```
+
+운영 중인 VM에 즉시 반영:
+```bash
+sudo sed -i 's|assessment_engine.main:app|assessment_engine.web.main:app|' \
+  /etc/systemd/system/assessment-api.service
+sudo systemctl daemon-reload && sudo systemctl restart assessment-api
+```
+
+---
+
+## 11. Worker `assessment-worker` 바이너리 없음
+
+**증상**  
+`playbook-worker.yml`의 `app_exec_start: ".../bin/assessment-worker"` 설정으로 서비스 기동 실패.
+
+**원인**  
+wheel에 `assessment-worker` console script entry point가 정의돼 있지 않아 `venv/bin/`에 해당 바이너리가 생성되지 않는다.  
+대신 consumer 패키지에 `__main__.py`가 있어 모듈 실행 방식을 지원한다.
+
+**확인 방법**
+```bash
+ls /opt/assessment/venv/bin/ | grep assess   # 결과 없음
+ls /opt/assessment/venv/lib/python3.12/site-packages/assessment_engine/consumer/
+# __main__.py 존재 확인
+```
+
+**해결**  
+`playbook-worker.yml` 수정:
+```yaml
+# 변경 전
+app_exec_start: "{{ app_venv }}/bin/assessment-worker"
+
+# 변경 후
+app_exec_start: "{{ app_venv }}/bin/python -m assessment_engine.consumer"
+```
+
+---
+
+## 12. RabbitMQ AMQP `Connection.Close` — 권한 없음
+
+**증상**
+```
+pamqp.exceptions.AMQPInternalError: ("one of ['Connection.OpenOk']",
+  <Connection.Close object ...>)
+ERROR: Application startup failed. Exiting.
+```
+
+**원인**  
+`assessment` 유저가 `assessment` vhost에 대한 권한이 전혀 없는 상태였다.
+
+Ansible role의 권한 설정 task에 버그가 있었다:
+
+```yaml
+# 버그 있는 코드
+- name: check current user permissions
+  command: rabbitmqctl list_user_permissions {{ vault_mq_user }}
+  register: current_perms
+
+- name: set user permissions on vhost
+  command: rabbitmqctl set_permissions -p {{ vault_mq_vhost }} {{ vault_mq_user }} ".*" ".*" ".*"
+  when: vault_mq_vhost not in current_perms.stdout
+```
+
+`rabbitmqctl list_user_permissions assessment` 출력 헤더가 `Listing permissions for user "assessment" ...`이므로,  
+`"assessment" not in current_perms.stdout`이 항상 **False**로 평가 → 권한 설정 task가 매번 스킵됐다.
+
+**확인 방법** (mq-vm에서)
+```bash
+sudo rabbitmqctl list_user_permissions assessment
+# 출력이 헤더만 있고 vhost 행이 없으면 권한 미설정 상태
+```
+
+**즉시 수동 복구**
+```bash
+sudo rabbitmqctl set_permissions -p assessment assessment ".*" ".*" ".*"
+```
+
+**Ansible role 수정** — 조건 체크 제거, 매 실행마다 덮어쓰기:
+```yaml
+- name: set user permissions on vhost
+  command: rabbitmqctl set_permissions -p {{ vault_mq_vhost }} {{ vault_mq_user }} ".*" ".*" ".*"
+  register: perms_result
+  changed_when: true
+  failed_when: perms_result.rc != 0
+```
+
+---
+
 ## 요약 테이블
 
 | # | 문제 | 원인 한 줄 요약 | 해결책 |
@@ -296,3 +419,6 @@ sudo -u assessment bash -c '
 | 7 | Alembic script_location 없음 | `_migrations` vs `migrations` 디렉토리명 불일치 | 심볼릭 링크 `migrations → _migrations` |
 | 8 | pyproject.toml permission denied | alembic cwd가 `/root` → assessment 유저 읽기 불가 | `chdir: "{{ app_dir }}"` 명시 |
 | 9 | DNS `postgres` 해석 실패 | env 파일 키가 `DATABASE_URL`로 틀림, pydantic이 기본값 사용 | `POSTGRES_*` / `RABBITMQ_*` 개별 키로 교체 |
+| 10 | uvicorn ASGI import 실패 | 엔트리포인트가 `assessment_engine.main` (존재 안 함) | `assessment_engine.web.main:app`으로 수정 |
+| 11 | worker 바이너리 없음 | wheel에 console script 미등록 | `python -m assessment_engine.consumer`로 변경 |
+| 12 | AMQP Connection.Close | Ansible when 조건 버그로 vhost 권한 설정 스킵 | 권한 task의 when 조건 제거, 무조건 실행 |
