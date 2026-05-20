@@ -4,8 +4,7 @@
   vars:
     app_service_name: assessment-worker
     app_run_alembic: false
-    # TODO: assessment-engine worker entry point 확인 후 수정
-    app_exec_start: "{{ app_venv }}/bin/assessment-worker"
+    app_exec_start: "{{ app_venv }}/bin/python -m assessment_engine.consumer"
     app_env:
       POSTGRES_HOST: "{{ hostvars['db-vm'].ansible_host }}"
       POSTGRES_PORT: "5432"

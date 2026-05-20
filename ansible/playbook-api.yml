@@ -4,8 +4,7 @@
   vars:
     app_service_name: assessment-api
     app_run_alembic: true
-    # TODO: assessment-engine entry point 확인 후 수정
-    app_exec_start: "{{ app_venv }}/bin/uvicorn assessment_engine.main:app --host 0.0.0.0 --port 8000"
+    app_exec_start: "{{ app_venv }}/bin/uvicorn assessment_engine.web.main:app --host 0.0.0.0 --port 8000"
     app_env:
       POSTGRES_HOST: "{{ hostvars['db-vm'].ansible_host }}"
       POSTGRES_PORT: "5432"
