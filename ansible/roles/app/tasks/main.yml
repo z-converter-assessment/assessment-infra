@@ -1,13 +1,14 @@
 ---
-- name: install python3.12 and venv
+- name: install python3.12, venv, acl
   apt:
     name:
       - python3.12
       - python3.12-venv
+      - acl
     state: present
     update_cache: true
 
-- name: create app group
+- name: create app group3
   group:
     name: "{{ app_group }}"
     state: present

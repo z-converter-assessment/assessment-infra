@@ -10,13 +10,13 @@
 
 - name: add Cloudsmith Erlang apt repository
   apt_repository:
-    repo: "deb https://ppa1.rabbitmq.com/rabbitmq/rabbitmq-erlang/deb/debian bookworm main"
+    repo: "deb https://ppa1.rabbitmq.com/rabbitmq/rabbitmq-erlang/deb/ubuntu noble main"
     state: present
     filename: rabbitmq-erlang
 
 - name: add Cloudsmith RabbitMQ server apt repository
   apt_repository:
-    repo: "deb https://ppa1.rabbitmq.com/rabbitmq/rabbitmq-server/deb/debian bookworm main"
+    repo: "deb https://ppa1.rabbitmq.com/rabbitmq/rabbitmq-server/deb/ubuntu noble main"
     state: present
     filename: rabbitmq-server
     update_cache: true
