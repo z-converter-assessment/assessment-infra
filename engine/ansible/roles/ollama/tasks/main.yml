@@ -1,0 +1,83 @@
+---
+# Ollama 설치 + 모델 배포 (폐쇄망)
+# 외부망 차단으로 install script와 모델 tarball을 bastion에서 사전 준비.
+# bastion 측 준비:
+#   curl -fsSL https://ollama.com/install.sh > engine/ansible/files/ollama/ollama-install.sh
+#   ollama pull gemma2:2b
+#   tar czf engine/ansible/files/ollama/ollama-models.tar.gz -C ~ .ollama
+#
+# 참고: 첫 설치 시 install script가 외부망 접근 시도하므로 폐쇄망에서는
+# offline 패키지 방식 (deb)로 전환 검토 필요. 현재는 일단 official script 경로 유지.
+
+- name: install runtime dependencies
+  apt:
+    name:
+      - curl
+      - ca-certificates
+    state: present
+    update_cache: true
+
+- name: create ollama group
+  group:
+    name: ollama
+    state: present
+
+- name: create ollama user
+  user:
+    name: ollama
+    group: ollama
+    home: /usr/share/ollama
+    shell: /usr/sbin/nologin
+    system: true
+    state: present
+
+- name: stage ollama install script
+  copy:
+    src: "ollama/{{ ollama_install_script }}"
+    dest: "/tmp/{{ ollama_install_script }}"
+    mode: "0755"
+
+- name: run ollama install script (idempotent — skip if /usr/local/bin/ollama exists)
+  command: "/tmp/{{ ollama_install_script }}"
+  args:
+    creates: /usr/local/bin/ollama
+
+- name: write ollama systemd override (host·port 변경)
+  copy:
+    dest: /etc/systemd/system/ollama.service.d/override.conf
+    mode: "0644"
+    content: |
+      [Service]
+      Environment="OLLAMA_HOST={{ ollama_host }}:{{ ollama_port }}"
+  notify:
+    - reload systemd
+    - restart ollama
+
+- name: ensure ollama service started
+  service:
+    name: ollama
+    state: started
+    enabled: true
+
+# ── 모델 배포 ──────────────────────────────────────────────────────
+- name: stage ollama models tarball
+  copy:
+    src: "ollama/{{ ollama_models_tarball }}"
+    dest: "/tmp/{{ ollama_models_tarball }}"
+    mode: "0644"
+
+- name: check if model already loaded
+  command: "/usr/local/bin/ollama list"
+  register: ollama_list
+  changed_when: false
+  failed_when: false
+
+- name: extract models into ollama home (skip if model already present)
+  unarchive:
+    src: "/tmp/{{ ollama_models_tarball }}"
+    dest: /usr/share/ollama
+    remote_src: true
+    owner: ollama
+    group: ollama
+  when: ollama_model not in (ollama_list.stdout | default(''))
+  notify: restart ollama

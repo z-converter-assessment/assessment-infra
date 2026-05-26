@@ -3,9 +3,9 @@ cloud_name = "openstack"
 
 # ── Horizon 수동 생성 자원 이름 ───────────────────────────────────
 # Horizon → Network → Networks 에서 확인
-network_name          = "zconverter-private-net"
-engine_subnet_name    = "assessment-engine"
-agent_subnet_name     = "target-vms"
+network_name       = "zconverter-private-net"
+engine_subnet_name = "assessment-engine"
+agent_subnet_name  = "target-vms"
 
 # openstack network list --external 로 확인
 external_network_name = "TODO"
@@ -22,17 +22,16 @@ image_name   = "debian13_x64_uefi_3G"
 keypair_name = "engine-key"
 
 # ── Flavor ────────────────────────────────────────────────────────
-# openstack flavor list 로 확인 후 매핑
+# 결정된 플레이버 (CLAUDE.md 아키텍처 요약 참조):
+#   - API·Cache·Worker: 최저 (1 vCPU / 1 GB)
+#   - MQ·DB: 1 vCPU / 2 GB (각각 Erlang·shared_buffers 메모리 요구)
+#   - AI: ZDM 플레이버 (4 vCPU / 8 GB / 100 GB) — Ollama 최경량 모델
 #
-# 환경 내 flavor 목록 (확인 후 업데이트):
-#   c1_m1_r30 : vcpu=1, ram=1GB,  disk=30GB
-#   c2_m2_r40 : vcpu=2, ram=2GB,  disk=40GB
-#   c2_m4_r30 : vcpu=2, ram=4GB,  disk=30GB
-#   c4_m4_r50 : vcpu=4, ram=4GB,  disk=50GB
+# openstack flavor list 로 확인 후 본 환경의 실제 flavor 이름 매핑
 
-flavor_api    = "c4_m4_r50"  # 4 vCPU / 4 GB
-flavor_mq     = "c2_m2_r40"  # 2 vCPU / 2 GB
-flavor_cache  = "c1_m1_r30"  # 1 vCPU/ 1 GB
-flavor_db     = "c2_m4_r30"  # 2 vCPU / 4 GB
-flavor_worker = "c2_m2_r40"  # 2 vCPU / 2 GB
-flavor_ai     = "TODO"       # AI VM — openstack flavor list 로 확인 후 설정
+flavor_api    = "c1_m1_r30"  # 1 vCPU / 1 GB
+flavor_mq     = "c1_m2_r40"  # 1 vCPU / 2 GB (MQ 전용 — 환경에 없으면 c2_m2_r40)
+flavor_cache  = "c1_m1_r30"  # 1 vCPU / 1 GB
+flavor_db     = "c1_m2_r40"  # 1 vCPU / 2 GB (DB 전용 — 환경에 없으면 c2_m4_r30)
+flavor_worker = "c1_m1_r30"  # 1 vCPU / 1 GB
+flavor_ai     = "zdm"        # ZDM 플레이버 — 4 vCPU / 8 GB / 100 GB

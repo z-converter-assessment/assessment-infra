@@ -1,0 +1,5 @@
+- name: AI VM — Ollama LLM 데몬
+  hosts: ai
+  become: true
+  roles:
+    - ollama

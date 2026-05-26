@@ -53,63 +53,6 @@ resource "openstack_networking_port_v2" "worker_port" {
   }
 }
 
-# ── Instances ─────────────────────────────────────────────────────
-
-resource "openstack_compute_instance_v2" "api_vm" {
-  name        = "api-vm"
-  image_id    = data.openstack_images_image_v2.ubuntu24.id
-  flavor_name = var.flavor_api
-  key_pair    = var.keypair_name
-
-  network {
-    port = openstack_networking_port_v2.api_port.id
-  }
-}
-
-resource "openstack_compute_instance_v2" "mq_vm" {
-  name        = "mq-vm"
-  image_id    = data.openstack_images_image_v2.ubuntu24.id
-  flavor_name = var.flavor_mq
-  key_pair    = var.keypair_name
-
-  network {
-    port = openstack_networking_port_v2.mq_port.id
-  }
-}
-
-resource "openstack_compute_instance_v2" "cache_vm" {
-  name        = "cache-vm"
-  image_id    = data.openstack_images_image_v2.ubuntu24.id
-  flavor_name = var.flavor_cache
-  key_pair    = var.keypair_name
-
-  network {
-    port = openstack_networking_port_v2.cache_port.id
-  }
-}
-
-resource "openstack_compute_instance_v2" "db_vm" {
-  name        = "db-vm"
-  image_id    = data.openstack_images_image_v2.ubuntu24.id
-  flavor_name = var.flavor_db
-  key_pair    = var.keypair_name
-
-  network {
-    port = openstack_networking_port_v2.db_port.id
-  }
-}
-
-resource "openstack_compute_instance_v2" "worker_vm" {
-  name        = "worker-vm"
-  image_id    = data.openstack_images_image_v2.ubuntu24.id
-  flavor_name = var.flavor_worker
-  key_pair    = var.keypair_name
-
-  network {
-    port = openstack_networking_port_v2.worker_port.id
-  }
-}
-
 resource "openstack_networking_port_v2" "ai_port" {
   name               = "ai-vm-port"
   network_id         = data.openstack_networking_network_v2.main.id
@@ -120,9 +63,66 @@ resource "openstack_networking_port_v2" "ai_port" {
   }
 }
 
+# ── Instances ─────────────────────────────────────────────────────
+
+resource "openstack_compute_instance_v2" "api_vm" {
+  name        = "api-vm"
+  image_id    = data.openstack_images_image_v2.debian13.id
+  flavor_name = var.flavor_api
+  key_pair    = var.keypair_name
+
+  network {
+    port = openstack_networking_port_v2.api_port.id
+  }
+}
+
+resource "openstack_compute_instance_v2" "mq_vm" {
+  name        = "mq-vm"
+  image_id    = data.openstack_images_image_v2.debian13.id
+  flavor_name = var.flavor_mq
+  key_pair    = var.keypair_name
+
+  network {
+    port = openstack_networking_port_v2.mq_port.id
+  }
+}
+
+resource "openstack_compute_instance_v2" "cache_vm" {
+  name        = "cache-vm"
+  image_id    = data.openstack_images_image_v2.debian13.id
+  flavor_name = var.flavor_cache
+  key_pair    = var.keypair_name
+
+  network {
+    port = openstack_networking_port_v2.cache_port.id
+  }
+}
+
+resource "openstack_compute_instance_v2" "db_vm" {
+  name        = "db-vm"
+  image_id    = data.openstack_images_image_v2.debian13.id
+  flavor_name = var.flavor_db
+  key_pair    = var.keypair_name
+
+  network {
+    port = openstack_networking_port_v2.db_port.id
+  }
+}
+
+resource "openstack_compute_instance_v2" "worker_vm" {
+  name        = "worker-vm"
+  image_id    = data.openstack_images_image_v2.debian13.id
+  flavor_name = var.flavor_worker
+  key_pair    = var.keypair_name
+
+  network {
+    port = openstack_networking_port_v2.worker_port.id
+  }
+}
+
 resource "openstack_compute_instance_v2" "ai_vm" {
   name        = "ai-vm"
-  image_id    = data.openstack_images_image_v2.ubuntu24.id
+  image_id    = data.openstack_images_image_v2.debian13.id
   flavor_name = var.flavor_ai
   key_pair    = var.keypair_name
 
