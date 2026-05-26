@@ -1,0 +1,22 @@
+# clouds.yaml entry 이름
+cloud_name = "openstack"
+
+# ── Horizon 수동 생성 자원 이름 ───────────────────────────────────
+# Horizon → Network → Networks 에서 확인
+network_name      = "zconverter-private-net"
+agent_subnet_name = "target-vms"
+
+# 기존 bastion VM에 적용된 SG 이름
+# openstack server show engine-main -f json | jq '.security_groups'
+bastion_sg_name = "TODO"
+
+# ── 이미지 · keypair ──────────────────────────────────────────────
+image_name   = "debian12_x64_uefi_3G"
+keypair_name = "engine-key"
+
+# ── Flavor ────────────────────────────────────────────────────────
+# openstack flavor list 로 확인 후 매핑
+#   c1_m1_r30 : vcpu=1, ram=1GB,  disk=30GB
+flavor_agent = "c1_m1_r30"  # 1 vCPU / 1 GB
+
+agent_count = 3

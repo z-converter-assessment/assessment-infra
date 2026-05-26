@@ -8,6 +8,17 @@
 - Terraform: OpenStack 자원 (SG·keypair·VM·volume·FIP) — network·subnet·router는 Horizon에서 사전 수동 생성, `data` source로 참조
 - Ansible: VM 안 설정·코드 배포·secret inject
 
+## 문서 분기 원칙
+- CLAUDE.md는 컨텍스트 상주 시 항상 유의미한 정보만 보유
+- 세부는 docs/ 분기
+- 참조 방향: CLAUDE.md -> docs (단방향)
+- docs/ref/ 는 격리. 어떤 문서나 코드도 참조 금지
+
+## commit 규칙
+- type prefix: feat / fix / chore / refactor / test 중 정확한 분류
+- 한글 설명 (subject + body)
+- 세부: docs/commit.md
+
 ## 의존 contract (assessment-engine repo)
 
 | 자산 | 위치 | 용도 | CI 의존 |
@@ -30,37 +41,54 @@
 
 ```
 assessment-infra/
-├── CLAUDE.md
+├── .claude/CLAUDE.md
 ├── README.md
-├── .gitignore
 ├── docs/
-│   ├── adr/                          # 의사결정 기록
+│   ├── adr/                              # 의사결정 기록
 │   └── operations/
-│       ├── troubleshooting.md        # 배포 트러블슈팅 기록
-│       ├── env.md                    # 환경변수 카탈로그
-│       └── release.md                # wheel 배포 절차
-├── terraform/
-│   ├── versions.tf
-│   ├── providers.tf
-│   ├── variables.tf
-│   ├── data.tf                       # Horizon 생성 자원 data source (network·subnet)
-│   ├── security_groups.tf
-│   ├── keypair.tf
-│   ├── instances-engine.tf           # API·MQ·DB·Worker VM
-│   ├── instances-agent.tf            # Agent VM N대
-│   ├── volumes.tf                    # Cinder
-│   ├── floating_ips.tf
-│   ├── outputs.tf
-│   └── terraform.tfvars.example
-└── ansible/
-    ├── inventory.tpl.yml
-    ├── group_vars/all/vault.yml.example
-    ├── playbook-db.yml
-    ├── playbook-mq.yml
-    ├── playbook-api.yml
-    ├── playbook-worker.yml
-    ├── playbook-agent.yml
-    └── roles/
+│       ├── troubleshooting.md
+│       ├── env.md
+│       └── release.md
+├── scripts/
+│   ├── gen-inventory.sh                  # engine/terraform output → engine/ansible/inventory.yml
+│   └── gen_inventory.py
+├── engine/                               # assessment-engine 인프라 (API·MQ·DB·Cache·Worker)
+│   ├── terraform/
+│   │   ├── versions.tf
+│   │   ├── providers.tf
+│   │   ├── variables.tf
+│   │   ├── data.tf                       # Horizon 생성 자원 data source
+│   │   ├── security_groups.tf            # api·mq·cache·db·worker·agent SG 정의
+│   │   ├── instances.tf                  # API·MQ·Cache·DB·Worker VM
+│   │   ├── volumes.tf                    # Cinder (MQ·DB)
+│   │   ├── floating_ips.tf               # API VM FIP
+│   │   ├── outputs.tf
+│   │   └── terraform.tfvars.example
+│   └── ansible/
+│       ├── ansible.cfg
+│       ├── inventory.yml                 # gen-inventory.sh 생성 (gitignore)
+│       ├── group_vars/all/
+│       ├── playbook-db.yml
+│       ├── playbook-mq.yml
+│       ├── playbook-cache.yml
+│       ├── playbook-api.yml
+│       ├── playbook-worker.yml
+│       └── roles/
+└── agent/                                # assessment-agent 테스트 환경 (Agent VM N대)
+    ├── terraform/
+    │   ├── versions.tf
+    │   ├── providers.tf
+    │   ├── variables.tf
+    │   ├── data.tf                       # network·agent_subnet·agent_sg(engine 생성) 참조
+    │   ├── instances.tf                  # Agent VM N대
+    │   ├── outputs.tf
+    │   └── terraform.tfvars.example
+    └── ansible/
+        ├── ansible.cfg
+        ├── inventory.yml                 # 수동 작성 (gitignore)
+        ├── group_vars/all/common.yml
+        ├── playbook-agent.yml
+        └── roles/agent/
 ```
 
 ## 결정된 아키텍처
