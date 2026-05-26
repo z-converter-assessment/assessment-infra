@@ -19,10 +19,17 @@
 - 한글 설명 (subject + body)
 - 세부: docs/commit.md
 
+## ADR (Architecture Decision Record)
+- 결정 시점에 `docs/adr/NNNN-<kebab-title>.md` 작성
+- 번호는 4자리 순번 (0001, 0002, …)
+- 필수 항목: 컨텍스트 / 결정 / 트레이드오프
+- 상태값: Proposed → Accepted → Deprecated (이전 결정 대체 시 번호 유지 + 상태만 변경)
+- 기존 ADR 목록: docs/adr/ 참조
+
 ## 의존 contract (assessment-engine repo)
 
 | 자산 | 위치 | 용도 | CI 의존 |
-|---|---|---|---|성
+|---|---|---|---|
 | 환경변수 카탈로그 | `docs/operations/env.md` | inject할 키 목록 | X |
 | prod contract | `docs/operations/prod-contract.md` | secret 채널·weak default 거부 정책 | X |
 | 메시지 schema | `docs/architecture/agent.md` | agent ↔ broker 페이로드 | X |
