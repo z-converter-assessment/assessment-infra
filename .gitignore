@@ -1,19 +1,21 @@
 # Terraform
-terraform/.terraform/
-terraform/.terraform.lock.hcl
-terraform/terraform.tfstate
-terraform/terraform.tfstate.backup
-terraform/terraform.tfvars
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/terraform.tfvars
 *.tfvars
 !*.tfvars.example
 
-# Ansible
-ansible/inventory.yml
-ansible/group_vars/all/vault.yml
+# Ansible — generated/secret
+**/ansible/inventory.yml
+**/ansible/group_vars/all/vault.yml
 
-# wheel 배포 파일 — 운영자가 배포 시 ansible/files/wheels/ 에 직접 복사
-ansible/files/wheels/*.whl
-ansible/files/wheels/SHA256SUMS
+# 배포 artifact — 운영자가 bastion에서 다운로드 후 복사
+engine/ansible/files/wheels/*.whl
+engine/ansible/files/wheels/SHA256SUMS
+agent/ansible/files/binaries/assessment-agent-linux
+agent/ansible/files/binaries/assessment-agent.exe
 
 # OS
 .DS_Store
