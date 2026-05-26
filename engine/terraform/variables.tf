@@ -54,32 +54,32 @@ variable "keypair_name" {
 # ── Flavor ────────────────────────────────────────────────────────
 
 variable "flavor_api" {
-  description = "API VM flavor (4 vCPU / 4 GB)"
+  description = "API VM flavor — 최저 플레이버 (1 vCPU / 1 GB)"
   type        = string
 }
 
 variable "flavor_mq" {
-  description = "MQ VM flavor (2 vCPU / 2 GB)"
+  description = "MQ VM flavor — Erlang 런타임 메모리 요구로 2 GB 필수 (1 vCPU / 2 GB)"
   type        = string
 }
 
 variable "flavor_cache" {
-  description = "Cache VM flavor (1 vCPU / 1 GB)"
+  description = "Cache VM flavor — 최저 플레이버 (1 vCPU / 1 GB)"
   type        = string
 }
 
 variable "flavor_db" {
-  description = "DB VM flavor (2 vCPU / 4 GB)"
+  description = "DB VM flavor — PostgreSQL shared_buffers + OS 여유로 2 GB 필수 (1 vCPU / 2 GB)"
   type        = string
 }
 
 variable "flavor_worker" {
-  description = "Worker VM flavor (2 vCPU / 2 GB)"
+  description = "Worker VM flavor — 최저 플레이버 (1 vCPU / 1 GB)"
   type        = string
 }
 
 variable "flavor_ai" {
-  description = "AI VM flavor"
+  description = "AI VM flavor — Ollama 최경량 모델 (~3B Q4 ≈ 2 GB) + OS 여유. ZDM 플레이버 (4 vCPU / 8 GB / 100 GB disk)"
   type        = string
 }
 
