@@ -25,6 +25,11 @@ output "worker_vm_private_ip" {
   value       = openstack_compute_instance_v2.worker_vm.access_ip_v4
 }
 
+output "ai_vm_private_ip" {
+  description = "ai-vm 사설 IP"
+  value       = openstack_compute_instance_v2.ai_vm.access_ip_v4
+}
+
 # ── Floating IP ───────────────────────────────────────────────────
 
 output "api_vm_fip" {

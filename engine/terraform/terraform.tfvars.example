@@ -35,6 +35,4 @@ flavor_mq     = "c2_m2_r40"  # 2 vCPU / 2 GB
 flavor_cache  = "c1_m1_r30"  # 1 vCPU/ 1 GB
 flavor_db     = "c2_m4_r30"  # 2 vCPU / 4 GB
 flavor_worker = "c2_m2_r40"  # 2 vCPU / 2 GB
-flavor_agent  = "c1_m1_r30"  # 1 vCPU / 1 GB  (추후 agent VM 추가 시 사용)
-
-agent_count = 3
+flavor_ai     = "TODO"       # AI VM — openstack flavor list 로 확인 후 설정

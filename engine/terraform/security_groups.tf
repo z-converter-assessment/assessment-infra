@@ -30,6 +30,11 @@ resource "openstack_networking_secgroup_v2" "agent_sg" {
   description = "Agent VM — SSH from bastion, inbound from agent-subnet"
 }
 
+resource "openstack_networking_secgroup_v2" "ai_sg" {
+  name        = "ai-sg"
+  description = "AI VM — SSH from bastion, outbound to api:8000 and db:5432"
+}
+
 # ── api-sg ingress ────────────────────────────────────────────────
 
 resource "openstack_networking_secgroup_rule_v2" "api_ssh" {
@@ -49,6 +54,16 @@ resource "openstack_networking_secgroup_rule_v2" "api_8000" {
   port_range_min    = 8000
   port_range_max    = 8000
   remote_ip_prefix  = var.internal_cidr
+  security_group_id = openstack_networking_secgroup_v2.api_sg.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "api_8000_from_ai" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 8000
+  port_range_max    = 8000
+  remote_group_id   = openstack_networking_secgroup_v2.ai_sg.id
   security_group_id = openstack_networking_secgroup_v2.api_sg.id
 }
 
@@ -178,6 +193,16 @@ resource "openstack_networking_secgroup_rule_v2" "db_5432_from_worker" {
   security_group_id = openstack_networking_secgroup_v2.db_sg.id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "db_5432_from_ai" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 5432
+  port_range_max    = 5432
+  remote_group_id   = openstack_networking_secgroup_v2.ai_sg.id
+  security_group_id = openstack_networking_secgroup_v2.db_sg.id
+}
+
 # ── worker-sg ingress ─────────────────────────────────────────────
 
 resource "openstack_networking_secgroup_rule_v2" "worker_ssh" {
@@ -207,4 +232,16 @@ resource "openstack_networking_secgroup_rule_v2" "agent_all_from_agent_subnet" {
   ethertype         = "IPv4"
   remote_ip_prefix  = data.openstack_networking_subnet_v2.agent.cidr
   security_group_id = openstack_networking_secgroup_v2.agent_sg.id
+}
+
+# ── ai-sg ingress ─────────────────────────────────────────────────
+
+resource "openstack_networking_secgroup_rule_v2" "ai_ssh" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 22
+  port_range_max    = 22
+  remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
+  security_group_id = openstack_networking_secgroup_v2.ai_sg.id
 }

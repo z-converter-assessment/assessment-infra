@@ -78,13 +78,8 @@ variable "flavor_worker" {
   type        = string
 }
 
-variable "flavor_agent" {
-  description = "Agent VM flavor (1 vCPU / 1 GB) — 추후 instances-agent.tf에서 사용"
+variable "flavor_ai" {
+  description = "AI VM flavor"
   type        = string
 }
 
-variable "agent_count" {
-  description = "Agent VM 대수"
-  type        = number
-  default     = 3
-}

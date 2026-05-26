@@ -109,3 +109,24 @@ resource "openstack_compute_instance_v2" "worker_vm" {
     port = openstack_networking_port_v2.worker_port.id
   }
 }
+
+resource "openstack_networking_port_v2" "ai_port" {
+  name               = "ai-vm-port"
+  network_id         = data.openstack_networking_network_v2.main.id
+  security_group_ids = [openstack_networking_secgroup_v2.ai_sg.id]
+
+  fixed_ip {
+    subnet_id = data.openstack_networking_subnet_v2.engine.id
+  }
+}
+
+resource "openstack_compute_instance_v2" "ai_vm" {
+  name        = "ai-vm"
+  image_id    = data.openstack_images_image_v2.ubuntu24.id
+  flavor_name = var.flavor_ai
+  key_pair    = var.keypair_name
+
+  network {
+    port = openstack_networking_port_v2.ai_port.id
+  }
+}
