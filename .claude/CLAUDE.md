@@ -46,8 +46,8 @@
 
 ## 도구
 
-- Terraform: bastion PowerShell에서 실행
-- Ansible: bastion PowerShell에서 실행
+- Terraform: bastion (Debian 13)에서 실행
+- Ansible: bastion (Debian 13)에서 실행
 - 인증: Application Credential (clouds.yaml)
 - SSH key: engine-key.pem (mode 0400)
 

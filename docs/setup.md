@@ -14,7 +14,7 @@
 | 0-d | Bootstrap VM (Bastion) 생성 → engine-subnet 배치 → FIP 부여 (Debian 13, ZDM flavor) |
 | 0-e | OpenStack keypair 등록 (이름: `engine-key`) — Terraform이 reference만 함 |
 
-## 1. Terraform 단계 (bastion PowerShell)
+## 1. Terraform 단계 (bastion · Debian 13)
 
 | 순서 | 파일 | 내용 |
 |---|---|---|
