@@ -221,11 +221,18 @@ Docker 없음 — 모든 컴포넌트를 인스턴스 위에 직접 설치.
 - Alembic: `_alembic.ini` (언더스코어), `_migrations/` (언더스코어) — `migrations/` symlink 필요
 - wheel 파일명: `assessment_engine-{version}-py3-none-any.whl` — `v` 접두사 없음
 
+### OS (Debian 13 Trixie)
+
+- 모든 엔진 VM OS: **Debian 13 (Trixie)** — ADR-0006
+- SSH 기본 접속 계정: `debian`
+- Python: 3.13 (Trixie 기본) — `python3` / `python3-venv` 패키지
+- site-packages 경로: `lib/python3.13/site-packages/`
+
 ### 환경 제약 (폐쇄망)
 
-- `ppa1.rabbitmq.com` (Cloudsmith) 차단 → RabbitMQ는 Ubuntu universe repo 사용
-- TimescaleDB는 `postgresql-16 >= 16.14` 요구 → Ubuntu 기본 repo 16.13 부족 → PGDG repo 필수
-- VM은 외부 인터넷 직접 접근 불가 → wheel은 bastion에서 다운로드 후 `ansible/files/wheels/`에 복사
+- `ppa1.rabbitmq.com` (Cloudsmith) 차단 → RabbitMQ는 Debian main repo 사용
+- TimescaleDB는 `postgresql-16 >= 16.14` 요구 → PGDG repo 필수 (`trixie-pgdg`)
+- VM은 외부 인터넷 직접 접근 불가 → wheel은 bastion에서 다운로드 후 `engine/ansible/files/wheels/`에 복사
 
 ## 보류된 결정
 

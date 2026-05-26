@@ -1,9 +1,9 @@
 ---
-- name: install python3.12, venv, acl
+- name: install python3, venv, acl
   apt:
     name:
-      - python3.12
-      - python3.12-venv
+      - python3
+      - python3-venv
       - acl
     state: present
     update_cache: true
@@ -24,7 +24,7 @@
     state: present
 
 - name: create virtualenv
-  command: python3.12 -m venv {{ app_venv }}
+  command: python3 -m venv {{ app_venv }}
   args:
     creates: "{{ app_venv }}/bin/python"
   become_user: "{{ app_user }}"
@@ -67,14 +67,14 @@
 
 - name: create migrations symlink (_migrations → migrations)
   file:
-    src: "{{ app_venv }}/lib/python3.12/site-packages/assessment_engine/_migrations"
-    dest: "{{ app_venv }}/lib/python3.12/site-packages/assessment_engine/migrations"
+    src: "{{ app_venv }}/lib/python{{ python_version }}/site-packages/assessment_engine/_migrations"
+    dest: "{{ app_venv }}/lib/python{{ python_version }}/site-packages/assessment_engine/migrations"
     state: link
 
 - name: run alembic migrations
   command: >
     {{ app_venv }}/bin/alembic
-    -c {{ app_venv }}/lib/python3.12/site-packages/assessment_engine/_alembic.ini
+    -c {{ app_venv }}/lib/python{{ python_version }}/site-packages/assessment_engine/_alembic.ini
     upgrade head
   args:
     chdir: "{{ app_dir }}"

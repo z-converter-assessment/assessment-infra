@@ -35,7 +35,7 @@ def main():
     print(f"""\
 all:
   vars:
-    ansible_user: ubuntu
+    ansible_user: debian
     ansible_ssh_private_key_file: ~/.ssh/engine-key.pem
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 

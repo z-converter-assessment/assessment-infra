@@ -42,7 +42,7 @@ variable "internal_cidr" {
 variable "image_name" {
   description = "VM 공용 OS 이미지 이름"
   type        = string
-  default     = "ubuntu24.04_x64_uefi_3.5G"
+  default     = "debian13_x64_uefi_3G"
 }
 
 variable "keypair_name" {

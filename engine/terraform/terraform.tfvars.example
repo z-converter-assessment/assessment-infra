@@ -18,7 +18,7 @@ bastion_sg_name = "TODO"
 internal_cidr = "0.0.0.0/0"
 
 # ── 이미지 · keypair ──────────────────────────────────────────────
-image_name   = "debian12_x64_uefi_3G"
+image_name   = "debian13_x64_uefi_3G"
 keypair_name = "engine-key"
 
 # ── Flavor ────────────────────────────────────────────────────────
