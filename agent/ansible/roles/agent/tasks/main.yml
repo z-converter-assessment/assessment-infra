@@ -1,39 +1,58 @@
-# TODO: assessment-agent (C binary) 배포
-# 참고: assessment-engine repo docs/architecture/agent.md — agent ↔ broker 페이로드 schema
-- name: Create agent user
+# assessment-agent (C binary) 배포 — Linux only
+# Windows는 별도 playbook (미구현)
+
+- name: create agent group
+  ansible.builtin.group:
+    name: "{{ agent_group }}"
+    system: true
+
+- name: create agent user
   ansible.builtin.user:
-    name: agent
+    name: "{{ agent_user }}"
+    group: "{{ agent_group }}"
     system: true
     shell: /usr/sbin/nologin
+    home: "{{ agent_dir }}"
+    create_home: false
 
-- name: Create agent directory
+- name: create agent directory
   ansible.builtin.file:
-    path: /opt/agent
+    path: "{{ agent_dir }}"
     state: directory
-    owner: agent
-    group: agent
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
     mode: "0755"
 
-- name: Copy agent binary
+- name: copy agent binary
   ansible.builtin.copy:
-    src: "{{ agent_binary_src }}"
-    dest: /opt/agent/assessment-agent
-    owner: agent
-    group: agent
+    src: "binaries/{{ agent_binary_linux }}"
+    dest: "{{ agent_binary_dest }}"
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
     mode: "0755"
   notify: restart agent
 
-- name: Install agent systemd unit
+- name: write agent environment file
+  ansible.builtin.template:
+    src: agent.env.j2
+    dest: "{{ agent_dir }}/{{ agent_service_name }}.env"
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0600"
+  notify: restart agent
+
+- name: install agent systemd unit
   ansible.builtin.template:
     src: agent.service.j2
-    dest: /etc/systemd/system/agent.service
+    dest: "/etc/systemd/system/{{ agent_service_name }}.service"
     mode: "0644"
   notify:
     - reload systemd
     - restart agent
 
-- name: Enable and start agent
+- name: enable and start agent
   ansible.builtin.systemd:
-    name: agent
+    name: "{{ agent_service_name }}"
     enabled: true
     state: started
+    daemon_reload: true

@@ -1,0 +1,27 @@
+# Agent VM 로컬 Redis 설치 — 기본 설정 그대로
+# Engine cache role과 다른 점: bind 0.0.0.0 안 함 (로컬만 모니터링용)
+
+- name: enable EPEL repo (rhel only — for redis)
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: install redis (debian/ubuntu)
+  ansible.builtin.apt:
+    name: "{{ pkg_redis }}"
+    state: present
+    update_cache: true
+  when: ansible_os_family == 'Debian'
+
+- name: install redis (rhel family)
+  ansible.builtin.dnf:
+    name: "{{ pkg_redis }}"
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: enable and start redis
+  ansible.builtin.systemd:
+    name: "{{ redis_service }}"
+    state: started
+    enabled: true

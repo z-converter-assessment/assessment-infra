@@ -4,5 +4,5 @@
 
 - name: restart agent
   ansible.builtin.systemd:
-    name: agent
+    name: "{{ agent_service_name }}"
     state: restarted

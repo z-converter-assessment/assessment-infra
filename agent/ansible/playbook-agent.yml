@@ -1,5 +1,8 @@
-- name: Deploy assessment-agent binary
-  hosts: agent
+# Agent 바이너리 배포 — Linux family만 처리.
+# Windows는 별도 playbook 필요 (WinRM 기반, 미구현).
+
+- name: Deploy assessment-agent binary (Linux)
+  hosts: linux
   become: true
   roles:
     - agent

@@ -12,12 +12,15 @@ data "openstack_networking_secgroup_v2" "bastion_sg" {
   name = var.bastion_sg_name
 }
 
-data "openstack_images_image_v2" "ubuntu24" {
-  name        = var.image_name
-  most_recent = true
-}
-
 # engine/terraform에서 생성된 agent-sg를 참조 — engine terraform을 먼저 apply해야 함
 data "openstack_networking_secgroup_v2" "agent_sg" {
   name = "agent-sg"
+}
+
+# OS별 이미지 data source — agent_os_map의 키별로 하나씩 lookup
+data "openstack_images_image_v2" "agent_image" {
+  for_each = var.agent_os_map
+
+  name        = each.value.image_name
+  most_recent = true
 }

@@ -1,0 +1,14 @@
+# Linux 공통 (debian·ubuntu·rhel family 모두 포함)
+agent_user: agent
+agent_group: agent
+agent_dir: /opt/agent
+agent_binary_dest: /opt/agent/assessment-agent
+agent_service_name: assessment-agent
+
+# 로컬 PostgreSQL·Redis (테스트 환경 — agent가 모니터링할 실제 서비스)
+local_pg_db: testdb
+local_pg_user: testuser
+local_pg_password: testpass
+local_pg_port: 5432
+
+local_redis_port: 6379

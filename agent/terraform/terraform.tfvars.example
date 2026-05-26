@@ -10,13 +10,27 @@ agent_subnet_name = "target-vms"
 # openstack server show engine-main -f json | jq '.security_groups'
 bastion_sg_name = "TODO"
 
-# ── 이미지 · keypair ──────────────────────────────────────────────
-image_name   = "debian12_x64_uefi_3G"
+# ── keypair ───────────────────────────────────────────────────────
 keypair_name = "engine-key"
 
 # ── Flavor ────────────────────────────────────────────────────────
-# openstack flavor list 로 확인 후 매핑
-#   c1_m1_r30 : vcpu=1, ram=1GB,  disk=30GB
-flavor_agent = "c1_m1_r30"  # 1 vCPU / 1 GB
+# Agent VM 공용 — 최저 플레이버 (1 vCPU / 1 GB / 20 GB)
+# openstack flavor list 로 확인 후 환경의 실제 flavor 이름 매핑.
+flavor_agent = "c1_m1_r30"
 
-agent_count = 3
+# ── OS 8종 정의 ────────────────────────────────────────────────────
+# 기본값은 variables.tf 참조. 일부만 override 가능:
+#
+# agent_os_map = {
+#   debian13 = {
+#     image_name = "debian13_x64_uefi_3G"
+#     family     = "debian"
+#     ssh_user   = "debian"
+#     count      = 4
+#   }
+#   ...
+# }
+#
+# 총 30대 + Windows 2대 = 32대 기본 (variables.tf default 합산).
+# OpenStack 이미지 가용성에 따라 image_name 갱신 필요:
+#   openstack image list --status active

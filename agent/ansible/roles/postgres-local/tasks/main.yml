@@ -1,0 +1,53 @@
+# Agent VM 로컬 PostgreSQL 설치 — Cinder 없이 OS 기본 디스크 사용
+# Engine DB role과 다른 점: 단순 apt/dnf 설치, TimescaleDB 없음, 단일 testdb만 생성
+
+- name: install postgresql (debian/ubuntu)
+  ansible.builtin.apt:
+    name: "{{ pkg_postgres }}"
+    state: present
+    update_cache: true
+  when: ansible_os_family in ['Debian']
+
+- name: install postgresql (rhel family)
+  ansible.builtin.dnf:
+    name: "{{ pkg_postgres }}"
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: initdb on rhel family (idempotent — skip if data dir already populated)
+  ansible.builtin.command: "postgresql-setup --initdb"
+  args:
+    creates: "{{ pg_data_dir }}/PG_VERSION"
+  when: ansible_os_family == 'RedHat'
+
+- name: ensure postgresql service started
+  ansible.builtin.systemd:
+    name: "{{ pg_service }}"
+    state: started
+    enabled: true
+
+- name: install psycopg2 (debian/ubuntu)
+  ansible.builtin.apt:
+    name: python3-psycopg2
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: install psycopg2 (rhel)
+  ansible.builtin.dnf:
+    name: python3-psycopg2
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: create test db user
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ local_pg_user }}"
+    password: "{{ local_pg_password }}"
+    state: present
+
+- name: create test database
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "{{ local_pg_db }}"
+    owner: "{{ local_pg_user }}"
+    state: present
