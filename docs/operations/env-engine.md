@@ -52,6 +52,7 @@ vault.yml (암호화)           common.yml / zdm.yml          (gen-inventory.sh 
 | `ZDM_DEFAULT_USER` | ✓ | ✓ | ✓ | `zdm_default_user` (`zdm.yml`) |
 | `OLLAMA_HOST` | — | — | ✓ | `ollama_api_host` (`ai.yml`, `127.0.0.1`) |
 | `OLLAMA_PORT` | — | — | ✓ | `ollama_port` (`ai.yml`, `11434`) |
+| `OLLAMA_MODEL` | — | — | ✓ | `ollama_model` (`ai.yml`, `gemma2:2b`) |
 
 > **Vault 항목** — `engine/ansible/group_vars/all/vault.yml`에 암호화 저장.
 > 평문 예시: `group_vars/all/vault.yml.example`.
@@ -116,6 +117,7 @@ vault.yml (암호화)           common.yml / zdm.yml          (gen-inventory.sh 
 |---|---|---|---|
 | `OLLAMA_HOST` | `ollama_api_host` (`ai.yml`) | `127.0.0.1` | ai-vm 내부 Ollama 주소 (로컬 전용) |
 | `OLLAMA_PORT` | `ollama_port` (`ai.yml`) | `11434` | |
+| `OLLAMA_MODEL` | `ollama_model` (`ai.yml`) | `gemma2:2b` | 진단 로직이 사용할 모델명 — 미주입 시 diagnostic 동작 불가 |
 
 > `app.env.j2`의 `{% if ollama_api_host is defined %}` 블록으로 조건 렌더링 — api·consumer vm에는 미주입.
 

@@ -23,6 +23,7 @@
       ZDM_DEFAULT_USER: "{{ zdm_default_user }}"
       OLLAMA_HOST: "{{ ollama_api_host }}"
       OLLAMA_PORT: "{{ ollama_port | string }}"
+      OLLAMA_MODEL: "{{ ollama_model }}"
   roles:
     - ollama
     - app
