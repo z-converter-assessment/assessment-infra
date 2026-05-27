@@ -10,7 +10,7 @@ mq_volume_device: /dev/vdb
 
 # PostgreSQL
 pg_version: "16"
-engine_subnet_cidr: "10.0.10.64/26"
+engine_subnet_cidr: "10.0.10.0/24"
 
 # App (api-vm · worker-vm 공통)
 app_user: assessment

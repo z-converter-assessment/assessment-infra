@@ -1,6 +1,6 @@
 # assessment-engine release 버전
 # v 접두사 없이 작성 — wheel 파일명이 v 없이 생성됨 (예: 0.1.0)
-engine_version: "0.x.x"
+engine_version: "0.1.1"
 
 # 배포 방식: Option A — 운영자가 ansible/files/wheels/ 에 wheel을 사전 복사
 # wheel 파일명 패턴 (engine_version 변수 자동 삽입)
