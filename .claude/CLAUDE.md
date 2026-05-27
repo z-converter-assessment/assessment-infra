@@ -187,10 +187,15 @@ VM 책임·spec 테이블·SG 매트릭스: `docs/architecture/components.md` / 
 
 | 항목 | 결정 대기 사유 | 영향 |
 |---|---|---|
-| Agent Windows 배포 방식 | WinRM 자격 증명·OS 이미지 가용성 확인 필요 | `agent/ansible/`에 Windows playbook 분기 추가 |
-| AI VM Ollama 모델 선택 | gemma2:2b·llama3.2:3b·phi3.5-mini 중 폐쇄망 도입 가능성 + 응답 품질 검증 후 확정 | `engine/ansible/roles/ollama/`의 모델 pull 단계 |
-| Agent 테스트 환경 OS 8종 확정 | OpenStack 이미지 가용성 (RHEL·Rocky·Windows Server) 확인 필요 | `agent/terraform/instances.tf`의 image 분기 |
-| Agent 로컬 서비스 role 구조 | engine role 재사용 vs `*-local` 신규 작성 — Cinder 없이 단순 apt만 필요 | `agent/ansible/roles/` 디렉토리 결정 |
-| Cinder 볼륨 크기 (MQ·DB) | 학습 환경 데이터량 기준 산정 — 임시 20 GB로 시작 검토 | `engine/terraform/volumes.tf` `size` |
 | Terraform state remote backend | 멀티 사용자 단계 진입 시 OpenStack Swift backend로 이전 | `versions.tf` backend 블록 |
-| Agent fleet 별도 repo 분리 | 학습 마친 후 검토. 본 레포에 함께 유지 시작 | 디렉토리 구조 |
+
+## 확정된 결정 (코드 반영 완료)
+
+| 항목 | 결정 내용 | 근거 |
+|---|---|---|
+| Agent Windows 배포 방식 | GitHub Releases에서 bastion에 수동 다운로드 후 Ansible `win_copy`로 주입 | 폐쇄망 — VM에서 외부 직접 접근 불가. ADR-0007 |
+| AI VM Ollama 모델 | `gemma2:2b` (Q4, ~1.6 GB) | `engine/ansible/group_vars/all/ai.yml` 반영 |
+| Agent 테스트 환경 OS | Debian 13/12, Ubuntu 24.04/22.04, Rocky 9, AlmaLinux 9, CentOS Stream 9, Windows Server 2022 (총 32대) | `agent/terraform/variables.tf` 반영 |
+| Agent 로컬 서비스 role 구조 | 신규 `postgres-local` · `redis-local` role 작성 (단순 apt 설치) | agent-subnet 라우터 연결로 apt 접근 가능. engine role은 Cinder·TimescaleDB 포함으로 불일치. ADR-0008 |
+| Cinder 볼륨 크기 | MQ 20 GB, DB 30 GB | `engine/terraform/volumes.tf` 반영 |
+| Agent fleet 별도 repo 분리 | 별도 repo로 분리하지 않음 — 본 레포에서 `agent/` 디렉토리로 함께 관리 | — |

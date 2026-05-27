@@ -85,10 +85,8 @@ SG 8종 — `bastion-sg`(Horizon 등록·data 참조) + 본 레포 생성 7종(a
 
 | VM | 디바이스 | 마운트 포인트 | 크기 | 용도 |
 |---|---|---|---|---|
-| mq-vm | `/dev/vdb` | `/var/lib/rabbitmq` | TBD | RabbitMQ mnesia |
-| db-vm | `/dev/vdb` | `/var/lib/postgresql` | TBD | PostgreSQL data |
-
-> 볼륨 크기는 학습 환경 데이터량 기준 산정 — 결정 보류 (CLAUDE.md 보류된 결정 참조).
+| mq-vm | `/dev/vdb` | `/var/lib/rabbitmq` | 20 GB | RabbitMQ mnesia |
+| db-vm | `/dev/vdb` | `/var/lib/postgresql` | 30 GB | PostgreSQL data |
 
 ## 다이어그램 파일
 

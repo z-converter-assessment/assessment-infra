@@ -7,7 +7,7 @@ resource "openstack_blockstorage_volume_v3" "mq_data" {
 
 resource "openstack_blockstorage_volume_v3" "db_data" {
   name = "db-data"
-  size = 50
+  size = 30
 }
 
 # ── 볼륨 attach ───────────────────────────────────────────────────
