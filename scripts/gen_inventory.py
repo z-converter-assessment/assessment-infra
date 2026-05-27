@@ -116,12 +116,23 @@ def gen_agent_inventory(agent_out: dict, engine_out: dict) -> str:
         "all:",
         "  vars:",
         "    ansible_ssh_private_key_file: ~/.ssh/engine-key.pem",
-        '    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o ProxyJump=bastion"',
+        '    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"',
         f"    engine_mq_host: {engine_mq_host}",
         "    engine_mq_port: 5672",
         "",
         "  children:",
     ]
+
+    # agent_workers — 모든 agent VM의 최상위 그룹 (deploy·health-check 타겟)
+    has_linux = any(f in by_family for f in ("debian", "ubuntu", "rhel"))
+    has_windows = "windows" in by_family
+    lines.append("    agent_workers:")
+    lines.append("      children:")
+    if has_linux:
+        lines.append("        linux:")
+    if has_windows:
+        lines.append("        windows:")
+    lines.append("")
 
     # linux 부모 그룹 (children: 가용한 linux family만 포함)
     linux_families = [f for f in ("debian", "ubuntu", "rhel") if f in by_family]

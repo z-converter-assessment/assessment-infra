@@ -1,7 +1,5 @@
 ansible_ssh_private_key_file: ~/.ssh/engine-key.pem
-ansible_ssh_common_args: >-
-  -o StrictHostKeyChecking=no
-  -o ProxyJump=bastion
+ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 
 # Agent identity
 agent_user: assessment-agent
@@ -12,7 +10,7 @@ agent_service_name: assessment-agent
 agent_env_dir: /etc/assessment-agent
 
 # Binary fetch mode: github_release | local_file
-agent_binary_fetch_mode: github_release
+agent_binary_fetch_mode: local_file
 agent_github_repo: "z-converter-assessment/assessment-agent"
 agent_version: "latest"
 agent_binary_filename: assessment-agent-linux-x86_64
