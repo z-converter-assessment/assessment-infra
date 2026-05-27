@@ -32,7 +32,7 @@ resource "openstack_networking_secgroup_v2" "agent_sg" {
 
 resource "openstack_networking_secgroup_v2" "ai_sg" {
   name        = "ai-sg"
-  description = "AI VM — SSH from bastion, outbound to api:8000 and db:5432"
+  description = "AI VM — SSH from bastion, outbound to mq:5672 db:5432 cache:6379 ollama:local"
 }
 
 # ── api-sg ingress ────────────────────────────────────────────────
@@ -54,16 +54,6 @@ resource "openstack_networking_secgroup_rule_v2" "api_8000" {
   port_range_min    = 8000
   port_range_max    = 8000
   remote_ip_prefix  = var.internal_cidr
-  security_group_id = openstack_networking_secgroup_v2.api_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "api_8000_from_ai" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 8000
-  port_range_max    = 8000
-  remote_group_id   = openstack_networking_secgroup_v2.ai_sg.id
   security_group_id = openstack_networking_secgroup_v2.api_sg.id
 }
 
@@ -129,6 +119,16 @@ resource "openstack_networking_secgroup_rule_v2" "mq_15672_from_worker" {
   security_group_id = openstack_networking_secgroup_v2.mq_sg.id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_ai" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 5672
+  port_range_max    = 5672
+  remote_group_id   = openstack_networking_secgroup_v2.ai_sg.id
+  security_group_id = openstack_networking_secgroup_v2.mq_sg.id
+}
+
 # ── cache-sg ingress ──────────────────────────────────────────────
 
 resource "openstack_networking_secgroup_rule_v2" "cache_ssh" {
@@ -158,6 +158,16 @@ resource "openstack_networking_secgroup_rule_v2" "cache_6379_from_worker" {
   port_range_min    = 6379
   port_range_max    = 6379
   remote_group_id   = openstack_networking_secgroup_v2.worker_sg.id
+  security_group_id = openstack_networking_secgroup_v2.cache_sg.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "cache_6379_from_ai" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 6379
+  port_range_max    = 6379
+  remote_group_id   = openstack_networking_secgroup_v2.ai_sg.id
   security_group_id = openstack_networking_secgroup_v2.cache_sg.id
 }
 

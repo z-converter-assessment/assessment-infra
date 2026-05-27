@@ -6,6 +6,9 @@ ollama_model: "gemma2:2b"
 ollama_host: "0.0.0.0"
 ollama_port: 11434
 
+# diagnostic-worker → Ollama 연결 주소 (같은 VM이므로 localhost)
+ollama_api_host: "127.0.0.1"
+
 # Ollama install script — bastion에서 사전 다운로드 후 files/에 복사
 # 폐쇄망: VM에서 https://ollama.com 직접 접근 불가하므로 사전 배포 필요
 ollama_install_script: "ollama-install.sh"
