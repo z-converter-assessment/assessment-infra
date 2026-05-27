@@ -17,3 +17,9 @@ agent_binary_filename: assessment-agent-linux-x86_64
 
 # Engine MQ (host injected by gen_inventory.py)
 engine_mq_port: 5672
+
+# Service groups to install on this host.
+# Override per OS group in group_vars/<os_key>.yml or per host in host_vars/.
+# Available values: service_web, service_db, service_cache, service_mq,
+#                   service_container, service_monitor, service_app
+agent_services: []

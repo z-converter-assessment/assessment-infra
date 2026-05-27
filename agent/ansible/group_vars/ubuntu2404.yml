@@ -1,0 +1,4 @@
+agent_services:
+  - service_cache
+  - service_container
+  - service_monitor

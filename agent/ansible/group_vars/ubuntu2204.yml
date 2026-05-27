@@ -1,0 +1,3 @@
+agent_services:
+  - service_cache
+  - service_mq
