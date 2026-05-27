@@ -3,7 +3,7 @@ cloud_name = "openstack"
 
 # ── Horizon 수동 생성 자원 이름 ───────────────────────────────────
 # Horizon → Network → Networks 에서 확인
-network_name      = "zconverter-private-net"
+network_name      = "zconverter-private-network"
 agent_subnet_name = "target-vms"
 
 # 기존 bastion VM에 적용된 SG 이름
