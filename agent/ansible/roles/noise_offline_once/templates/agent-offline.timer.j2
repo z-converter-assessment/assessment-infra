@@ -1,0 +1,8 @@
+[Unit]
+Description=Stop assessment-agent 5 min after boot (noise_offline_once)
+
+[Timer]
+OnBootSec=5min
+
+[Install]
+WantedBy=timers.target

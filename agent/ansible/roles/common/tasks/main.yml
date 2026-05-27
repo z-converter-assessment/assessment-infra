@@ -1,0 +1,97 @@
+- name: Create persistent journal directory
+  ansible.builtin.file:
+    path: /var/log/journal
+    state: directory
+    mode: "2755"
+    owner: root
+    group: root
+  notify: restart journald
+
+- name: Reset machine-id -- check flag
+  ansible.builtin.stat:
+    path: "{{ agent_dir }}/.machine-id-reset"
+  register: machine_id_flag
+
+- name: Reset machine-id
+  ansible.builtin.shell: rm -f /etc/machine-id && systemd-machine-id-setup
+  when: machine_id_flag.stat.exists == false
+
+- name: Touch machine-id reset flag
+  ansible.builtin.file:
+    path: "{{ agent_dir }}/.machine-id-reset"
+    state: touch
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0600"
+  when: machine_id_flag.stat.exists == false
+
+- name: Create swapfile
+  ansible.builtin.command: dd if=/dev/zero of=/swapfile bs=1M count=1024
+  args:
+    creates: /swapfile
+  when: ansible_memtotal_mb < 1024
+
+- name: Set swapfile permissions
+  ansible.builtin.file:
+    path: /swapfile
+    mode: "0600"
+  when: ansible_memtotal_mb < 1024
+
+- name: Format swapfile
+  ansible.builtin.command: mkswap /swapfile
+  when: ansible_memtotal_mb < 1024
+
+- name: Enable swapfile
+  ansible.builtin.command: swapon /swapfile
+  register: swapon_result
+  failed_when:
+    - swapon_result.rc != 0
+    - '"already" not in swapon_result.stderr'
+  when: ansible_memtotal_mb < 1024
+
+- name: Add swapfile to fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "/swapfile none swap sw 0 0"
+    state: present
+  when: ansible_memtotal_mb < 1024
+
+- name: Refresh apt cache
+  ansible.builtin.command: apt-get update
+  when: ansible_os_family == 'Debian'
+
+- name: Install ca-certificates (Debian)
+  ansible.builtin.apt:
+    name: ca-certificates
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install ca-certificates (RedHat)
+  ansible.builtin.dnf:
+    name: ca-certificates
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Create assessment-agent group
+  ansible.builtin.group:
+    name: "{{ agent_group }}"
+    system: true
+    state: present
+
+- name: Create assessment-agent user
+  ansible.builtin.user:
+    name: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/agent-worker
+    create_home: false
+    state: present
+
+- name: Create agent working directory
+  ansible.builtin.file:
+    path: /var/lib/agent-worker
+    state: directory
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0750"

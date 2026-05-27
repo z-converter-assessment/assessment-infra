@@ -1,0 +1,8 @@
+- name: Deploy assessment-agent
+  hosts: agent_workers
+  become: true
+  roles:
+    - common
+    - agent_binary
+    - agent_env
+    - agent_service

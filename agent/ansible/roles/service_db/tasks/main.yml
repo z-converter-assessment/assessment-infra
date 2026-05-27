@@ -1,0 +1,28 @@
+- name: Load OS vars
+  ansible.builtin.include_vars: "{{ ansible_os_family }}.yml"
+
+- name: Install postgresql (Debian)
+  ansible.builtin.apt:
+    name: "{{ svc_pkg }}"
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install postgresql (RedHat)
+  ansible.builtin.dnf:
+    name: "{{ svc_pkg }}"
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Initialize postgresql (RedHat)
+  ansible.builtin.command: postgresql-setup --initdb
+  args:
+    creates: /var/lib/pgsql/data/PG_VERSION
+  when:
+    - ansible_os_family == 'RedHat'
+    - pg_needs_initdb | default(false)
+
+- name: Enable and start postgresql
+  ansible.builtin.systemd:
+    name: "{{ svc_name }}"
+    enabled: true
+    state: started

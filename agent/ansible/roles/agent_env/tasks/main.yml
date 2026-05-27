@@ -1,0 +1,26 @@
+- name: Create agent env directory
+  ansible.builtin.file:
+    path: "{{ agent_env_dir }}"
+    state: directory
+    owner: root
+    group: "{{ agent_group }}"
+    mode: "0750"
+
+- name: Render agent.env
+  ansible.builtin.template:
+    src: agent.env.j2
+    dest: "{{ agent_env_dir }}/agent.env"
+    owner: root
+    group: "{{ agent_group }}"
+    mode: "0640"
+  notify: restart assessment-agent
+
+- name: Render agent.env.local
+  ansible.builtin.template:
+    src: agent.env.local.j2
+    dest: "{{ agent_env_dir }}/agent.env.local"
+    owner: root
+    group: "{{ agent_group }}"
+    mode: "0640"
+  no_log: true
+  notify: restart assessment-agent

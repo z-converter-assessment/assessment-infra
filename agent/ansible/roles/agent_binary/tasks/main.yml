@@ -1,0 +1,87 @@
+- name: Fetch latest release URL from GitHub API
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ agent_github_repo }}/releases/latest"
+    return_content: true
+  register: github_release
+  when:
+    - agent_binary_fetch_mode == 'github_release'
+    - agent_version == 'latest'
+
+- name: Set binary download URL
+  ansible.builtin.set_fact:
+    agent_binary_url: >-
+      {{ github_release.json.assets
+         | selectattr('name', 'equalto', agent_binary_filename)
+         | map(attribute='browser_download_url')
+         | first }}
+  when:
+    - agent_binary_fetch_mode == 'github_release'
+    - agent_version == 'latest'
+
+- name: Download agent binary from GitHub release
+  ansible.builtin.get_url:
+    url: "{{ agent_binary_url }}"
+    dest: "{{ agent_binary_dest }}.new"
+    mode: "0755"
+  when: agent_binary_fetch_mode == 'github_release'
+  notify: restart assessment-agent
+
+- name: Verify checksum (github_release)
+  block:
+    - name: Stat downloaded binary
+      ansible.builtin.stat:
+        path: "{{ agent_binary_dest }}.new"
+        checksum_algorithm: sha256
+      register: binary_stat
+
+    - name: Assert checksum is non-empty
+      ansible.builtin.assert:
+        that: binary_stat.stat.checksum | length > 0
+        fail_msg: "Binary checksum is empty -- download may be corrupt"
+  when:
+    - agent_binary_fetch_mode == 'github_release'
+    - agent_binary_verify_checksum
+
+- name: Promote binary (github_release)
+  ansible.builtin.command: mv {{ agent_binary_dest }}.new {{ agent_binary_dest }}
+  when: agent_binary_fetch_mode == 'github_release'
+
+- name: Set binary mode (github_release)
+  ansible.builtin.file:
+    path: "{{ agent_binary_dest }}"
+    mode: "0755"
+  when: agent_binary_fetch_mode == 'github_release'
+
+- name: Copy agent binary from local files
+  ansible.builtin.copy:
+    src: "binaries/{{ agent_binary_filename }}"
+    dest: "{{ agent_binary_dest }}.new"
+    mode: "0755"
+  when: agent_binary_fetch_mode == 'local_file'
+  notify: restart assessment-agent
+
+- name: Verify checksum (local_file)
+  block:
+    - name: Stat copied binary
+      ansible.builtin.stat:
+        path: "{{ agent_binary_dest }}.new"
+        checksum_algorithm: sha256
+      register: binary_stat_local
+
+    - name: Assert checksum is non-empty
+      ansible.builtin.assert:
+        that: binary_stat_local.stat.checksum | length > 0
+        fail_msg: "Binary checksum is empty -- file may be corrupt"
+  when:
+    - agent_binary_fetch_mode == 'local_file'
+    - agent_binary_verify_checksum
+
+- name: Promote binary (local_file)
+  ansible.builtin.command: mv {{ agent_binary_dest }}.new {{ agent_binary_dest }}
+  when: agent_binary_fetch_mode == 'local_file'
+
+- name: Set binary mode (local_file)
+  ansible.builtin.file:
+    path: "{{ agent_binary_dest }}"
+    mode: "0755"
+  when: agent_binary_fetch_mode == 'local_file'

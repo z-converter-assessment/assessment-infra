@@ -1,0 +1,15 @@
+- name: Render systemd unit
+  ansible.builtin.template:
+    src: assessment-agent.service.j2
+    dest: /etc/systemd/system/assessment-agent.service
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart assessment-agent
+
+- name: Enable and start assessment-agent
+  ansible.builtin.systemd:
+    name: "{{ agent_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true

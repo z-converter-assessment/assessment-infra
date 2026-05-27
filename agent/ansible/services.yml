@@ -1,0 +1,41 @@
+- name: Install service_web
+  hosts: service_web
+  become: true
+  roles:
+    - service_web
+
+- name: Install service_db
+  hosts: service_db
+  become: true
+  roles:
+    - service_db
+
+- name: Install service_cache
+  hosts: service_cache
+  become: true
+  roles:
+    - service_cache
+
+- name: Install service_mq
+  hosts: service_mq
+  become: true
+  roles:
+    - service_mq
+
+- name: Install service_container
+  hosts: service_container
+  become: true
+  roles:
+    - service_container
+
+- name: Install service_monitor
+  hosts: service_monitor
+  become: true
+  roles:
+    - service_monitor
+
+- name: Install service_app
+  hosts: service_app
+  become: true
+  roles:
+    - service_app

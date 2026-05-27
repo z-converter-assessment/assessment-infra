@@ -1,9 +1,0 @@
-# 각 Agent VM에 로컬 PostgreSQL·Redis 설치 — Agent 모니터링 대상 환경 시뮬레이션.
-# Linux만 처리 (Windows는 별도).
-
-- name: Install local services on agent VMs (Linux)
-  hosts: linux
-  become: true
-  roles:
-    - postgres-local
-    - redis-local

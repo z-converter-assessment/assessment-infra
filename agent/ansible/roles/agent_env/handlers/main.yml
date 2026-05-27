@@ -1,0 +1,5 @@
+- name: restart assessment-agent
+  ansible.builtin.systemd:
+    name: "{{ agent_service_name }}"
+    state: restarted
+  listen: restart assessment-agent

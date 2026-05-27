@@ -1,9 +1,1 @@
-# rhel family (RHEL·Rocky·AlmaLinux·CentOS Stream) — dnf 기반
-pkg_postgres: postgresql-server
-pkg_redis: redis
-pg_service: postgresql
-redis_service: redis
-# RHEL 계열은 initdb 별도 실행 필요. tasks에서 처리.
-pg_data_dir: /var/lib/pgsql/data
-pg_hba_path: /var/lib/pgsql/data/pg_hba.conf
-pg_conf_path: /var/lib/pgsql/data/postgresql.conf
+ansible_python_interpreter: /usr/bin/python3
