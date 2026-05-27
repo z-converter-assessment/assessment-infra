@@ -265,3 +265,13 @@ resource "openstack_networking_secgroup_rule_v2" "ai_ssh" {
   remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
   security_group_id = openstack_networking_secgroup_v2.ai_sg.id
 }
+
+resource "openstack_networking_secgroup_rule_v2" "ai_11434_from_worker" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 11434
+  port_range_max    = 11434
+  remote_group_id   = openstack_networking_secgroup_v2.worker_sg.id
+  security_group_id = openstack_networking_secgroup_v2.ai_sg.id
+}

@@ -69,8 +69,8 @@ SG 8종 — `bastion-sg`(Horizon 등록·data 참조) + 본 레포 생성 7종(a
 | worker-sg | 6379 | cache-sg | Redis |
 | worker-sg | 5432 | db-sg | PostgreSQL |
 | agent-sg | 5672 | mq-sg | AMQP publish (agent → engine) |
-| ai-sg | 8000 | api-sg | API 호출 |
 | ai-sg | 5432 | db-sg | DB 직접 조회 |
+| worker-sg | 11434 | ai-sg | Ollama API 호출 |
 
 ### IP-prefix 기반 규칙 (`remote_ip_prefix` 방식)
 
