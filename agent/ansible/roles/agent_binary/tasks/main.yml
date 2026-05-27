@@ -1,9 +1,12 @@
+# ── Linux ─────────────────────────────────────────────────────────
+
 - name: Fetch latest release URL from GitHub API
   ansible.builtin.uri:
     url: "https://api.github.com/repos/{{ agent_github_repo }}/releases/latest"
     return_content: true
   register: github_release
   when:
+    - ansible_system != 'Win32NT'
     - agent_binary_fetch_mode == 'github_release'
     - agent_version == 'latest'
 
@@ -15,6 +18,7 @@
          | map(attribute='browser_download_url')
          | first }}
   when:
+    - ansible_system != 'Win32NT'
     - agent_binary_fetch_mode == 'github_release'
     - agent_version == 'latest'
 
@@ -23,7 +27,9 @@
     url: "{{ agent_binary_url }}"
     dest: "{{ agent_binary_dest }}.new"
     mode: "0755"
-  when: agent_binary_fetch_mode == 'github_release'
+  when:
+    - ansible_system != 'Win32NT'
+    - agent_binary_fetch_mode == 'github_release'
   notify: restart assessment-agent
 
 - name: Verify checksum (github_release)
@@ -39,25 +45,32 @@
         that: binary_stat.stat.checksum | length > 0
         fail_msg: "Binary checksum is empty -- download may be corrupt"
   when:
+    - ansible_system != 'Win32NT'
     - agent_binary_fetch_mode == 'github_release'
     - agent_binary_verify_checksum
 
 - name: Promote binary (github_release)
   ansible.builtin.command: mv {{ agent_binary_dest }}.new {{ agent_binary_dest }}
-  when: agent_binary_fetch_mode == 'github_release'
+  when:
+    - ansible_system != 'Win32NT'
+    - agent_binary_fetch_mode == 'github_release'
 
 - name: Set binary mode (github_release)
   ansible.builtin.file:
     path: "{{ agent_binary_dest }}"
     mode: "0755"
-  when: agent_binary_fetch_mode == 'github_release'
+  when:
+    - ansible_system != 'Win32NT'
+    - agent_binary_fetch_mode == 'github_release'
 
 - name: Copy agent binary from local files
   ansible.builtin.copy:
     src: "binaries/{{ agent_binary_filename }}"
     dest: "{{ agent_binary_dest }}.new"
     mode: "0755"
-  when: agent_binary_fetch_mode == 'local_file'
+  when:
+    - ansible_system != 'Win32NT'
+    - agent_binary_fetch_mode == 'local_file'
   notify: restart assessment-agent
 
 - name: Verify checksum (local_file)
@@ -73,15 +86,37 @@
         that: binary_stat_local.stat.checksum | length > 0
         fail_msg: "Binary checksum is empty -- file may be corrupt"
   when:
+    - ansible_system != 'Win32NT'
     - agent_binary_fetch_mode == 'local_file'
     - agent_binary_verify_checksum
 
 - name: Promote binary (local_file)
   ansible.builtin.command: mv {{ agent_binary_dest }}.new {{ agent_binary_dest }}
-  when: agent_binary_fetch_mode == 'local_file'
+  when:
+    - ansible_system != 'Win32NT'
+    - agent_binary_fetch_mode == 'local_file'
 
 - name: Set binary mode (local_file)
   ansible.builtin.file:
     path: "{{ agent_binary_dest }}"
     mode: "0755"
-  when: agent_binary_fetch_mode == 'local_file'
+  when:
+    - ansible_system != 'Win32NT'
+    - agent_binary_fetch_mode == 'local_file'
+
+# ── Windows ───────────────────────────────────────────────────────
+
+- name: Create agent binary directory (Windows)
+  ansible.windows.win_file:
+    path: "{{ agent_binary_dir }}"
+    state: directory
+  when: ansible_system == 'Win32NT'
+
+- name: Copy agent binary (Windows)
+  ansible.windows.win_copy:
+    src: "binaries/{{ agent_binary_filename }}"
+    dest: "{{ agent_binary_dest }}"
+  when:
+    - ansible_system == 'Win32NT'
+    - agent_binary_fetch_mode == 'local_file'
+  notify: restart AssessmentAgent

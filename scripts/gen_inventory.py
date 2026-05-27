@@ -104,10 +104,29 @@ def gen_agent_inventory(agent_out: dict, engine_out: dict) -> str:
     if "mq_vm_private_ip" not in engine_out:
         sys.exit("ERROR: engine terraform의 mq_vm_private_ip 필요 (agent → MQ 접속용)")
 
-    agent_vms = agent_out["agent_vms"]["value"]
-    by_family = agent_out["agent_vms_by_family"]["value"]
-    by_os = agent_out["agent_vms_by_os"]["value"]
+    agent_vms = dict(agent_out["agent_vms"]["value"])
+    by_family: dict[str, list] = {}
+    by_os: dict[str, list] = {}
     engine_mq_host = engine_out["mq_vm_private_ip"]["value"]
+
+    # windows_vm output이 있으면 agent_vms에 병합
+    win = agent_out.get("windows_vm", {}).get("value")
+    if win and win.get("ip"):
+        key = "windows2022-1"
+        agent_vms[key] = win
+        # by_family / by_os 재계산 전에 win 항목도 추가
+    else:
+        # by_family / by_os는 terraform output 그대로 사용
+        by_family = agent_out["agent_vms_by_family"]["value"]
+        by_os = agent_out["agent_vms_by_os"]["value"]
+
+    if win and win.get("ip"):
+        # agent_vms 전체를 순회해 by_family / by_os 재계산
+        for k, vm in agent_vms.items():
+            fam = vm["family"]
+            osk = vm["os_key"]
+            by_family.setdefault(fam, []).append(k)
+            by_os.setdefault(osk, []).append(k)
 
     lines = [
         "# 자동 생성 파일 — `./scripts/gen-inventory.sh`이 매번 덮어쓰기",
@@ -177,7 +196,9 @@ def main():
     AGENT_INV.write_text(agent_inv)
 
     n_engine = 6  # API·MQ·Cache·DB·Worker·AI
-    n_agent = agent_out.get("agent_total_count", {}).get("value", "?")
+    n_agent_linux = agent_out.get("agent_total_count", {}).get("value", 0)
+    win = agent_out.get("windows_vm", {}).get("value")
+    n_agent = n_agent_linux + (1 if win and win.get("ip") else 0)
     print(f"OK  {ENGINE_INV.relative_to(REPO_ROOT)}  ({n_engine} hosts)")
     print(f"OK  {AGENT_INV.relative_to(REPO_ROOT)}   ({n_agent} hosts)")
 

@@ -1,3 +1,5 @@
+# ── Linux ─────────────────────────────────────────────────────────
+
 - name: Create agent env directory
   ansible.builtin.file:
     path: "{{ agent_env_dir }}"
@@ -5,6 +7,7 @@
     owner: root
     group: "{{ agent_group }}"
     mode: "0750"
+  when: ansible_system != 'Win32NT'
 
 - name: Render agent.env
   ansible.builtin.template:
@@ -13,6 +16,7 @@
     owner: root
     group: "{{ agent_group }}"
     mode: "0640"
+  when: ansible_system != 'Win32NT'
   notify: restart assessment-agent
 
 - name: Render agent.env.local
@@ -22,5 +26,45 @@
     owner: root
     group: "{{ agent_group }}"
     mode: "0640"
+  when: ansible_system != 'Win32NT'
   no_log: true
   notify: restart assessment-agent
+
+# ── Windows — 시스템 환경변수로 MQ 접속 정보 주입 ─────────────────
+
+- name: Set MQ env vars (Windows)
+  ansible.windows.win_environment:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    level: machine
+  loop:
+    - name: RABBITMQ_HOST
+      value: "{{ engine_mq_host }}"
+    - name: RABBITMQ_PORT
+      value: "{{ engine_mq_port | default(5672) | string }}"
+    - name: RABBITMQ_VHOST
+      value: "{{ vault_mq_vhost | default('assessment') }}"
+    - name: RABBITMQ_EXCHANGE
+      value: assessment
+    - name: RABBITMQ_ROUTING_KEY_INVENTORY
+      value: server.inventory
+    - name: RABBITMQ_ROUTING_KEY_METRICS
+      value: server.metrics
+    - name: RABBITMQ_ROUTING_KEY_ERROR
+      value: server.error
+  when: ansible_system == 'Win32NT'
+  notify: restart AssessmentAgent
+
+- name: Set MQ credentials (Windows)
+  ansible.windows.win_environment:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    level: machine
+  loop:
+    - name: RABBITMQ_USER
+      value: "{{ vault_mq_user }}"
+    - name: RABBITMQ_PASS
+      value: "{{ vault_mq_password }}"
+  when: ansible_system == 'Win32NT'
+  no_log: true
+  notify: restart AssessmentAgent

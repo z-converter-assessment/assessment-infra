@@ -3,3 +3,11 @@
     name: "{{ agent_service_name }}"
     state: restarted
   listen: restart assessment-agent
+  when: ansible_system != 'Win32NT'
+
+- name: restart AssessmentAgent
+  ansible.windows.win_service:
+    name: "{{ agent_service_name }}"
+    state: restarted
+  listen: restart AssessmentAgent
+  when: ansible_system == 'Win32NT'

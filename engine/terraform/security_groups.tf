@@ -244,6 +244,16 @@ resource "openstack_networking_secgroup_rule_v2" "agent_all_from_agent_subnet" {
   security_group_id = openstack_networking_secgroup_v2.agent_sg.id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "agent_winrm_from_bastion" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 5985
+  port_range_max    = 5985
+  remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
+  security_group_id = openstack_networking_secgroup_v2.agent_sg.id
+}
+
 # ── ai-sg ingress ─────────────────────────────────────────────────
 
 resource "openstack_networking_secgroup_rule_v2" "ai_ssh" {

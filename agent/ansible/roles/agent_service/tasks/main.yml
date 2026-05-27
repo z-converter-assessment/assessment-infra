@@ -1,8 +1,11 @@
+# ── Linux ─────────────────────────────────────────────────────────
+
 - name: Render systemd unit
   ansible.builtin.template:
     src: assessment-agent.service.j2
     dest: /etc/systemd/system/assessment-agent.service
     mode: "0644"
+  when: ansible_system != 'Win32NT'
   notify:
     - reload systemd
     - restart assessment-agent
@@ -13,3 +16,16 @@
     enabled: true
     state: started
     daemon_reload: true
+  when: ansible_system != 'Win32NT'
+
+# ── Windows ───────────────────────────────────────────────────────
+
+- name: Install Windows service
+  ansible.windows.win_service:
+    name: "{{ agent_service_name }}"
+    path: "{{ agent_binary_dest }}"
+    display_name: Assessment Agent
+    description: Z-Converter assessment-agent for Windows
+    start_mode: auto
+    state: started
+  when: ansible_system == 'Win32NT'
