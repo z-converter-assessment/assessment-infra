@@ -42,6 +42,12 @@
   args:
     creates: /usr/local/bin/ollama
 
+- name: create ollama systemd override directory
+  file:
+    path: /etc/systemd/system/ollama.service.d
+    state: directory
+    mode: "0755"
+
 - name: write ollama systemd override (host·port 변경)
   copy:
     dest: /etc/systemd/system/ollama.service.d/override.conf

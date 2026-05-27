@@ -16,6 +16,7 @@ engine/ansible/files/wheels/*.whl
 engine/ansible/files/wheels/SHA256SUMS
 agent/ansible/files/binaries/assessment-agent-linux
 agent/ansible/files/binaries/assessment-agent.exe
+engine/ansible/files/ollama/ollama-models.tar.gz
 
 # OS
 .DS_Store
