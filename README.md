@@ -12,51 +12,65 @@ assessment-engine + agent fleet의 OpenStack 배포 인프라.
 
 ## 컴포넌트 구조
 
-```mermaid
-flowchart TB
-  internet(["사내망 / 외부망"])
-  bastion["bastion-vm\nDebian 13 · ZDM\nTerraform · Ansible\nFIP :22"]
+```
+                              Internet
+                                  |
+              FIP :22             |            FIP :8000
+                |                 |                 |
+                v                 |                 v
+    ┌──────────────────────┐      |      ┌──────────────────────┐
+    │      bastion-vm      │      |      │        api-vm        │
+    │     [bastion-sg]     │      |      │       [api-sg]       │
+    │      Debian 13       │      |      │    FastAPI  :8000    │
+    │  Terraform / Ansible │      |      └──────────────────────┘
+    └──────────┬───────────┘                        │
+               │                                    │  :5672  [api-sg  → mq-sg]
+               │  SSH :22 [bastion-sg]              │  :6379  [api-sg  → cache-sg]
+               │  to all engine + agent VMs          │  :5432  [api-sg  → db-sg]
+               │
+  ─────────────────────────── engine-subnet 10.0.10.0/24 ──────────────────────
+  │             │                                    │                         │
+  │             ▼                     ┌──────────────┤                         │
+  │                                   │    │         │                         │
+  │   ┌──────────────────┐  ┌──────────────┐  ┌──────────┐                    │
+  │   │      mq-vm       │  │  cache-vm    │  │  db-vm   │                    │
+  │   │     [mq-sg]      │  │ [cache-sg]   │  │ [db-sg]  │                    │
+  │   │  RabbitMQ        │  │ Redis :6379   │  │ PgSQL    │                    │
+  │   │  :5672 / :15672  │  └──────────────┘  │ :5432    │                    │
+  │   │  [Cinder 20G]    │                    │[Cinder   │                    │
+  │   └──────────────────┘                    │ 30G]     │                    │
+  │             ^                   ^          └──────────┘                    │
+  │             │ :5672             │ :6379         ^                          │
+  │   [worker-sg → mq-sg]  [worker-sg → cache-sg]  │ :5432                   │
+  │   [ai-sg    → mq-sg]   [ai-sg    → cache-sg]   │ [worker-sg → db-sg]     │
+  │             │                   │               │ [ai-sg    → db-sg]      │
+  │   ┌─────────┴───────────────────┴───────────────┴────────┐                │
+  │   │              worker-vm  [worker-sg]                   │                │
+  │   │              assessment-worker                        │                │
+  │   └───────────────────────────────────────────────────────┘                │
+  │                          │ :11434  [worker-sg → ai-sg]                     │
+  │                          v                                                  │
+  │   ┌─────────────────────────────────────────────────────────────┐           │
+  │   │                      ai-vm  [ai-sg]                         │           │
+  │   │   Ollama :11434 (local)  /  assessment-diagnostic           │           │
+  │   │   outbound :5672/:6379/:5432  [ai-sg → mq/cache/db-sg]     │           │
+  │   └─────────────────────────────────────────────────────────────┘           │
+  │                                                                             │
+  ───────────────────────────────────────────────────────────────────────────────
 
-  subgraph engine["engine-subnet  10.0.10.0/24"]
-    api["api-vm\nFastAPI :8000 ← FIP\n1c / 1G"]
-    mq["mq-vm\nRabbitMQ\n:5672 / :15672\n1c / 2G  [Cinder]"]
-    cache["cache-vm\nRedis :6379\n1c / 1G"]
-    db["db-vm\nPostgreSQL 16 + TimescaleDB\n:5432\n1c / 2G  [Cinder]"]
-    worker["worker-vm\nassessment-worker\n1c / 1G"]
-    ai["ai-vm\nOllama :11434 (local)\nassessment-diagnostic\n4c / 8G"]
-  end
-
-  subgraph agents["agent-subnet  10.0.20.0/24"]
-    lin["agent-vm (Linux) × 30+\nDebian · Ubuntu · CentOS · Rocky · ...\nassessment-agent"]
-    win["agent-vm (Windows) × 2\nWindows Server 2022\nassessment-agent.exe"]
-  end
-
-  internet --"FIP :8000"--> api
-  internet --"FIP :22"--> bastion
-
-  bastion -."SSH ProxyJump".-> api
-  bastion -."SSH ProxyJump".-> mq
-  bastion -."SSH ProxyJump".-> cache
-  bastion -."SSH ProxyJump".-> db
-  bastion -."SSH ProxyJump".-> worker
-  bastion -."SSH ProxyJump".-> ai
-  bastion -."SSH ProxyJump".-> lin
-  bastion -."WinRM :5985".-> win
-
-  api --":5672 AMQP"--> mq
-  api --":6379"--> cache
-  api --":5432"--> db
-
-  worker --":5672 AMQP"--> mq
-  worker --":6379"--> cache
-  worker --":5432"--> db
-
-  ai --":5672 AMQP"--> mq
-  ai --":6379"--> cache
-  ai --":5432"--> db
-
-  lin --":5672 AMQP"--> mq
-  win --":5672 AMQP"--> mq
+  ─────────────────────── agent-subnet 10.0.20.0/24 ────────────────────────────
+  │                                                                             │
+  │   ┌──────────────────────────────────┐  ┌──────────────────────────────┐   │
+  │   │      agent-vm  (Linux x30)       │  │    agent-vm  (Windows x2)    │   │
+  │   │           [agent-sg]             │  │         [agent-sg]           │   │
+  │   │   Debian / Ubuntu / RHEL         │  │    Windows Server 2022       │   │
+  │   │   SSH :22    <- [bastion-sg]      │  │  WinRM :5985 <- [bastion-sg] │   │
+  │   │   assessment-agent               │  │  assessment-agent.exe        │   │
+  │   └─────────────────┬────────────────┘  └──────────────┬───────────────┘   │
+  │                     │  AMQP :5672  [agent-sg → mq-sg]  │                   │
+  │                     └──────────────────────────────────┘                   │
+  │                                    │ to mq-vm                              │
+  ───────────────────────────────────────────────────────────────────────────────
 ```
 
 ---
