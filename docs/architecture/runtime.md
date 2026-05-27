@@ -11,7 +11,7 @@ sequenceDiagram
   participant DB as db-vm<br/>PostgreSQL
   participant Cache as cache-vm<br/>Redis
   participant MQ as mq-vm<br/>RabbitMQ
-  participant Worker as worker-vm<br/>consumer
+  participant Worker as consumer-vm<br/>consumer
 
   Client->>API: HTTP request
   API->>DB: 메타데이터 조회/저장
@@ -31,7 +31,7 @@ sequenceDiagram
 sequenceDiagram
   participant Agent as agent-vm<br/>C binary
   participant MQ as mq-vm<br/>RabbitMQ
-  participant Worker as worker-vm
+  participant Worker as consumer-vm
   participant DB as db-vm
 
   Note over Agent: 로컬 서비스 메트릭 수집<br/>(PostgreSQL·Redis 등)
@@ -92,14 +92,14 @@ GitHub Releases ─ wheel 다운로드 ─► bastion
                                        │
                                        │ ansible-playbook playbook-api.yml
                                        ▼
-                                  api-vm / worker-vm
+                                  api-vm / consumer-vm
                                   /tmp/release/  →  venv pip install
 ```
 
 1. bastion에서 GitHub Releases의 wheel 다운로드
 2. `engine/ansible/files/wheels/`에 복사
 3. `engine/ansible/group_vars/all/engine.yml`의 `engine_version` 갱신
-4. `playbook-api.yml` 또는 `playbook-worker.yml` 실행
+4. `playbook-api.yml` 또는 `playbook-consumer.yml` 실행
 
 ### Agent 바이너리 배포
 
@@ -134,6 +134,6 @@ GitHub Releases ─ binary 다운로드 ─► bastion
 | cache-vm 다운 | fail-open — 캐시 미스만 발생, 서비스 유지 | redis-server restart |
 | mq-vm 다운 | 진단 작업 publish/consume 정지. 누적된 큐는 mnesia(Cinder)에서 복구 | rabbitmq-server restart |
 | db-vm 다운 | 전체 서비스 중단 | postgresql restart, Cinder 마운트 점검 |
-| worker-vm 다운 | 진단 작업 대기 (큐에 적체) — API 응답엔 영향 X | systemd restart |
+| consumer-vm 다운 | 진단 작업 대기 (큐에 적체) — API 응답엔 영향 X | systemd restart |
 | ai-vm 다운 | LLM 진단 narrative 합성만 영향 | Ollama restart |
 | agent-vm 다운 | 해당 VM의 메트릭 수집 정지. 다른 agent·engine은 영향 X | systemd restart |

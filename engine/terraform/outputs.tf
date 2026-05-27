@@ -20,9 +20,9 @@ output "db_vm_private_ip" {
   value       = openstack_compute_instance_v2.db_vm.access_ip_v4
 }
 
-output "worker_vm_private_ip" {
-  description = "worker-vm 사설 IP"
-  value       = openstack_compute_instance_v2.worker_vm.access_ip_v4
+output "consumer_vm_private_ip" {
+  description = "consumer-vm 사설 IP"
+  value       = openstack_compute_instance_v2.consumer_vm.access_ip_v4
 }
 
 output "ai_vm_private_ip" {

@@ -73,8 +73,8 @@ variable "flavor_db" {
   type        = string
 }
 
-variable "flavor_worker" {
-  description = "Worker VM flavor — 최저 플레이버 (1 vCPU / 1 GB)"
+variable "flavor_consumer" {
+  description = "Consumer VM flavor — 최저 플레이버 (1 vCPU / 1 GB)"
   type        = string
 }
 

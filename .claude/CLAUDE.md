@@ -76,7 +76,7 @@ assessment-infra/
 │       ├── ansible.cfg · requirements.yml · inventory.yml (gitignore)
 │       ├── group_vars/all/{common,engine,zdm}.yml
 │       ├── files/wheels/                 # bastion에서 다운로드한 wheel
-│       ├── playbook-{db,mq,cache,api,worker}.yml
+│       ├── playbook-{db,mq,cache,api,consumer}.yml
 │       ├── playbook-ai.yml               # (TBD) Ollama 설치
 │       └── roles/{app,postgres,rabbitmq,redis,ollama(TBD)}
 └── agent/                                # assessment-agent 테스트 환경 (30대+)
@@ -96,7 +96,7 @@ assessment-infra/
 
 상세는 `docs/architecture/`. 여기는 작업 시 자주 참조하는 핵심만.
 
-- **VM 8종**: engine 6종(API·MQ·Cache·DB·Worker·AI) + agent 플릿(30대+·OS 8종+) + bastion 1
+- **VM 8종**: engine 6종(API·MQ·Cache·DB·Consumer·AI) + agent 플릿(30대+·OS 8종+) + bastion 1
 - **네트워크**: engine-subnet `10.0.10.0/24` / agent-subnet `10.0.20.0/24` — Horizon 수동
 - **FIP**: API VM + Bastion만. 나머지 사설 IP only
 - **파이프라인**: Horizon → Terraform → Ansible
@@ -155,7 +155,7 @@ VM 책임·spec 테이블·SG 매트릭스: `docs/architecture/components.md` / 
 
 1. bastion에서 GitHub Releases의 wheel 다운로드 → `engine/ansible/files/wheels/`
 2. `engine/ansible/group_vars/all/engine.yml`의 `engine_version` 갱신
-3. `playbook-api.yml` 또는 `playbook-worker.yml` 실행
+3. `playbook-api.yml` 또는 `playbook-consumer.yml` 실행
 
 상세 흐름·alembic 단계·agent 바이너리 배포: `docs/architecture/runtime.md`.
 

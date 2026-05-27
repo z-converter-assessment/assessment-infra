@@ -1,8 +1,8 @@
-- name: Worker VM — assessment-engine Worker
-  hosts: worker
+- name: Consumer VM — assessment-engine Consumer
+  hosts: consumer
   become: true
   vars:
-    app_service_name: assessment-worker
+    app_service_name: assessment-consumer
     app_run_alembic: false
     app_exec_start: "{{ app_venv }}/bin/python -m assessment_engine.consumer"
     app_env:

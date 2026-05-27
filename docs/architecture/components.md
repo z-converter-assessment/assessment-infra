@@ -54,7 +54,7 @@
 
 > TimescaleDB는 `postgresql-16 >= 16.14` 요구 → PGDG repo 필수.
 
-## worker-vm
+## consumer-vm
 
 | 항목 | 값 |
 |---|---|
@@ -66,7 +66,7 @@
 | spec | 최저 (1 vCPU / 1 GB) |
 | 데이터 | 없음 |
 
-> api-vm과 동일 wheel — systemd unit·EnvironmentFile만 다름 (`app_service_name: assessment-worker`).
+> api-vm과 동일 wheel — systemd unit·EnvironmentFile만 다름 (`app_service_name: assessment-consumer`).
 
 ## ai-vm
 

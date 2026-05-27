@@ -271,7 +271,7 @@ sudo -u assessment bash -c '
 ```
 
 **해결**  
-`app.env.j2`와 `playbook-api.yml` / `playbook-worker.yml`의 `app_env` dict를 pydantic-settings 필드명으로 전면 수정.
+`app.env.j2`와 `playbook-api.yml` / `playbook-consumer.yml`의 `app_env` dict를 pydantic-settings 필드명으로 전면 수정.
 
 | 변경 전 (틀림) | 변경 후 (맞음) |
 |---|---|
@@ -328,13 +328,13 @@ sudo systemctl daemon-reload && sudo systemctl restart assessment-api
 
 ---
 
-## 11. Worker `assessment-worker` 바이너리 없음
+## 11. Consumer `assessment-consumer` 바이너리 없음
 
 **증상**  
-`playbook-worker.yml`의 `app_exec_start: ".../bin/assessment-worker"` 설정으로 서비스 기동 실패.
+`playbook-consumer.yml`의 `app_exec_start: ".../bin/assessment-consumer"` 설정으로 서비스 기동 실패.
 
 **원인**  
-wheel에 `assessment-worker` console script entry point가 정의돼 있지 않아 `venv/bin/`에 해당 바이너리가 생성되지 않는다.  
+wheel에 `assessment-consumer` console script entry point가 정의돼 있지 않아 `venv/bin/`에 해당 바이너리가 생성되지 않는다.  
 대신 consumer 패키지에 `__main__.py`가 있어 모듈 실행 방식을 지원한다.
 
 **확인 방법**
@@ -345,10 +345,10 @@ ls /opt/assessment/venv/lib/python3.12/site-packages/assessment_engine/consumer/
 ```
 
 **해결**  
-`playbook-worker.yml` 수정:
+`playbook-consumer.yml` 수정:
 ```yaml
 # 변경 전
-app_exec_start: "{{ app_venv }}/bin/assessment-worker"
+app_exec_start: "{{ app_venv }}/bin/assessment-consumer"
 
 # 변경 후
 app_exec_start: "{{ app_venv }}/bin/python -m assessment_engine.consumer"
@@ -728,7 +728,7 @@ agent_os_map = {
 | 8 | pyproject.toml permission denied | alembic cwd가 `/root` → assessment 유저 읽기 불가 | `chdir: "{{ app_dir }}"` 명시 |
 | 9 | DNS `postgres` 해석 실패 | env 파일 키가 `DATABASE_URL`로 틀림, pydantic이 기본값 사용 | `POSTGRES_*` / `RABBITMQ_*` 개별 키로 교체 |
 | 10 | uvicorn ASGI import 실패 | 엔트리포인트가 `assessment_engine.main` (존재 안 함) | `assessment_engine.web.main:app`으로 수정 |
-| 11 | worker 바이너리 없음 | wheel에 console script 미등록 | `python -m assessment_engine.consumer`로 변경 |
+| 11 | consumer 바이너리 없음 | wheel에 console script 미등록 | `python -m assessment_engine.consumer`로 변경 |
 | 12 | AMQP Connection.Close | Ansible when 조건 버그로 vhost 권한 설정 스킵 | 권한 task의 when 조건 제거, 무조건 실행 |
 | 13 | flavor `c1_m2_r40` 없음 | 환경에 존재하지 않는 flavor 이름 | `openstack flavor list` 확인 후 `c2_m2_r40` / `c2_m4_r30` 폴백 |
 | 14 | SSH 키 권한 0664 | pem 파일 권한이 너무 열려 있음 | `chmod 0400 ~/.ssh/engine-key.pem` |

@@ -41,14 +41,14 @@ assessment-engine + agent fleet의 OpenStack 배포 인프라.
   │   └──────────────────┘                    │ 30G]     │                    │
   │             ^                   ^          └──────────┘                    │
   │             │ :5672             │ :6379         ^                          │
-  │   [worker-sg → mq-sg]  [worker-sg → cache-sg]  │ :5432                   │
-  │   [ai-sg    → mq-sg]   [ai-sg    → cache-sg]   │ [worker-sg → db-sg]     │
+  │   [consumer-sg → mq-sg]  [consumer-sg → cache-sg]  │ :5432                │
+  │   [ai-sg    → mq-sg]   [ai-sg    → cache-sg]   │ [consumer-sg → db-sg]   │
   │             │                   │               │ [ai-sg    → db-sg]      │
   │   ┌─────────┴───────────────────┴───────────────┴────────┐                │
-  │   │              worker-vm  [worker-sg]                   │                │
-  │   │              assessment-worker                        │                │
+  │   │              consumer-vm  [consumer-sg]               │                │
+  │   │              assessment-consumer                      │                │
   │   └───────────────────────────────────────────────────────┘                │
-  │                          │ :11434  [worker-sg → ai-sg]                     │
+  │                          │ :11434  [consumer-sg → ai-sg]                   │
   │                          v                                                  │
   │   ┌─────────────────────────────────────────────────────────────┐           │
   │   │                      ai-vm  [ai-sg]                         │           │
@@ -208,8 +208,8 @@ terraform apply
 
 | 자원 | 이름 | 비고 |
 |---|---|---|
-| SG | `api-sg` · `mq-sg` · `cache-sg` · `db-sg` · `worker-sg` · `ai-sg` | 7종 |
-| VM | `api-vm` · `mq-vm` · `cache-vm` · `db-vm` · `worker-vm` · `ai-vm` | Debian 13 |
+| SG | `api-sg` · `mq-sg` · `cache-sg` · `db-sg` · `consumer-sg` · `ai-sg` | 7종 |
+| VM | `api-vm` · `mq-vm` · `cache-vm` · `db-vm` · `consumer-vm` · `ai-vm` | Debian 13 |
 | Cinder | `mq-data` · `db-data` | `/dev/vdb` attach |
 | FIP | api-vm 1개 | external_net에서 발급 |
 
@@ -277,7 +277,7 @@ ansible all -m ping
 #### Playbook 실행 순서
 
 `ansible.cfg`에 `inventory` · `vault_password_file` · `pipelining`이 설정되어 있으므로 `cd engine/ansible` 후 실행.
-DB → MQ가 먼저 떠야 api · worker가 접속 가능하므로 **순서를 반드시 지킬 것**.
+DB → MQ가 먼저 떠야 api · consumer가 접속 가능하므로 **순서를 반드시 지킬 것**.
 
 ```bash
 cd engine/ansible
@@ -286,7 +286,7 @@ ansible-playbook playbook-db.yml      # 1. PostgreSQL 16 + TimescaleDB (PGDG rep
 ansible-playbook playbook-mq.yml      # 2. RabbitMQ (Debian main repo — ADR-0004)
 ansible-playbook playbook-cache.yml   # 3. Redis
 ansible-playbook playbook-api.yml     # 4. API  (wheel → venv → alembic upgrade → systemd)
-ansible-playbook playbook-worker.yml  # 5. Worker (wheel → venv → systemd)
+ansible-playbook playbook-consumer.yml  # 5. Consumer (wheel → venv → systemd)
 ```
 
 > `playbook-ai.yml` (Ollama)은 모델 선택 확정 후 추가 예정 (TBD).

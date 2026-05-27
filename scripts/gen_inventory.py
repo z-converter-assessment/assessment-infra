@@ -2,7 +2,7 @@
 """engine·agent terraform output에서 Ansible inventory 2개를 생성한다.
 
 생성 파일:
-  - engine/ansible/inventory.yml — db·mq·cache·api·worker·ai 그룹
+  - engine/ansible/inventory.yml — db·mq·cache·api·consumer·ai 그룹
   - agent/ansible/inventory.yml  — linux(debian/ubuntu/rhel) / windows + OS별 group
 
 사용법:
@@ -49,7 +49,7 @@ def gen_engine_inventory(engine_out: dict) -> str:
         "mq_vm_private_ip",
         "cache_vm_private_ip",
         "db_vm_private_ip",
-        "worker_vm_private_ip",
+        "consumer_vm_private_ip",
         "ai_vm_private_ip",
     ]
     missing = [k for k in required if k not in engine_out]
@@ -86,10 +86,10 @@ all:
       hosts:
         api-vm:
           ansible_host: {ip('api_vm_private_ip')}
-    worker:
+    consumer:
       hosts:
-        worker-vm:
-          ansible_host: {ip('worker_vm_private_ip')}
+        consumer-vm:
+          ansible_host: {ip('consumer_vm_private_ip')}
     ai:
       hosts:
         ai-vm:
@@ -195,7 +195,7 @@ def main():
     ENGINE_INV.write_text(engine_inv)
     AGENT_INV.write_text(agent_inv)
 
-    n_engine = 6  # API·MQ·Cache·DB·Worker·AI
+    n_engine = 6  # API·MQ·Cache·DB·Consumer·AI
     n_agent_linux = agent_out.get("agent_total_count", {}).get("value", 0)
     win = agent_out.get("windows_vm", {}).get("value")
     n_agent = n_agent_linux + (1 if win and win.get("ip") else 0)

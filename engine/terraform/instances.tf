@@ -43,10 +43,10 @@ resource "openstack_networking_port_v2" "db_port" {
   }
 }
 
-resource "openstack_networking_port_v2" "worker_port" {
-  name               = "worker-vm-port"
+resource "openstack_networking_port_v2" "consumer_port" {
+  name               = "consumer-vm-port"
   network_id         = data.openstack_networking_network_v2.main.id
-  security_group_ids = [openstack_networking_secgroup_v2.worker_sg.id]
+  security_group_ids = [openstack_networking_secgroup_v2.consumer_sg.id]
 
   fixed_ip {
     subnet_id = data.openstack_networking_subnet_v2.engine.id
@@ -109,14 +109,14 @@ resource "openstack_compute_instance_v2" "db_vm" {
   }
 }
 
-resource "openstack_compute_instance_v2" "worker_vm" {
-  name        = "worker-vm"
+resource "openstack_compute_instance_v2" "consumer_vm" {
+  name        = "consumer-vm"
   image_id    = data.openstack_images_image_v2.debian13.id
-  flavor_name = var.flavor_worker
+  flavor_name = var.flavor_consumer
   key_pair    = var.keypair_name
 
   network {
-    port = openstack_networking_port_v2.worker_port.id
+    port = openstack_networking_port_v2.consumer_port.id
   }
 }
 

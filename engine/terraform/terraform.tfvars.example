@@ -33,5 +33,5 @@ flavor_api    = "c1_m1_r30"  # 1 vCPU / 1 GB
 flavor_mq     = "c1_m2_r40"  # 1 vCPU / 2 GB (MQ 전용 — 환경에 없으면 c2_m2_r40)
 flavor_cache  = "c1_m1_r30"  # 1 vCPU / 1 GB
 flavor_db     = "c1_m2_r40"  # 1 vCPU / 2 GB (DB 전용 — 환경에 없으면 c2_m4_r30)
-flavor_worker = "c1_m1_r30"  # 1 vCPU / 1 GB
+flavor_consumer = "c1_m1_r30"  # 1 vCPU / 1 GB
 flavor_ai     = "zdm"        # ZDM 플레이버 — 4 vCPU / 8 GB / 100 GB
