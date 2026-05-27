@@ -99,6 +99,7 @@ resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_agent" {
   security_group_id = openstack_networking_secgroup_v2.mq_sg.id
 }
 
+# 15672 (RabbitMQ Management UI) — 운영 편의용. api·worker VM에서 브라우저 포워딩으로 접근.
 resource "openstack_networking_secgroup_rule_v2" "mq_15672_from_api" {
   direction         = "ingress"
   ethertype         = "IPv4"
