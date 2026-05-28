@@ -195,7 +195,7 @@ VM 책임·spec 테이블·SG 매트릭스: `docs/architecture/components.md` / 
 |---|---|---|
 | Agent Windows 배포 방식 | GitHub Releases에서 bastion에 수동 다운로드 후 Ansible `win_copy`로 주입 | 폐쇄망 — VM에서 외부 직접 접근 불가. ADR-0007 |
 | AI VM Ollama 모델 | `gemma2:2b` (Q4, ~1.6 GB) | `engine/ansible/group_vars/all/ai.yml` 반영 |
-| Agent 테스트 환경 OS | Debian 13/12, Ubuntu 24.04/22.04, Rocky 9, AlmaLinux 9, CentOS Stream 9, Windows Server 2022 (총 32대) | `agent/terraform/variables.tf` 반영 |
+| Agent 테스트 환경 OS | Linux 7종 × 4대 = 28대 (Debian 13/12, Ubuntu 24.04/22.04, Rocky 9, AlmaLinux 9, CentOS Stream 9) + Windows Server 2022 × 1대(옵션) | Linux: `agent/terraform/variables.tf`, Windows: `agent/terraform/windows.tf` |
 | Agent 로컬 서비스 role 구조 | 신규 `postgres-local` · `redis-local` role 작성 (단순 apt 설치) | agent-subnet 라우터 연결로 apt 접근 가능. engine role은 Cinder·TimescaleDB 포함으로 불일치. ADR-0008 |
 | Cinder 볼륨 크기 | MQ 20 GB, DB 30 GB | `engine/terraform/volumes.tf` 반영 |
 | Agent fleet 별도 repo 분리 | 별도 repo로 분리하지 않음 — 본 레포에서 `agent/` 디렉토리로 함께 관리 | — |

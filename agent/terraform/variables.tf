@@ -36,19 +36,19 @@ variable "flavor_agent" {
   type        = string
 }
 
-# ── OS 8종 정의 ────────────────────────────────────────────────────
+# ── Linux OS 정의 ──────────────────────────────────────────────────
 # 각 OS별 image_name·family·ssh_user·count를 한 곳에서 관리.
+# Windows는 boot-from-volume·cloudbase-init이 필요해 별도 windows.tf에서 정의.
 #
 # family:
 #   - debian/ubuntu : apt
 #   - rhel          : dnf/yum (RHEL·Rocky·AlmaLinux·CentOS Stream)
-#   - windows       : WinRM (Linux과 인증·통신 방식이 다름. playbook 미구현)
 #
 # image_name: openstack image list 로 확인 후 환경의 실제 이름으로 갱신.
 # ssh_user: cloud image의 기본 계정 (cloud-init 표준).
 
 variable "agent_os_map" {
-  description = "OS별 image·family·count 정의. 키는 inventory group name으로도 사용됨."
+  description = "Linux OS별 image·family·count 정의. 키는 inventory group name으로도 사용됨."
   type = map(object({
     image_name = string
     family     = string
@@ -98,12 +98,6 @@ variable "agent_os_map" {
       family     = "rhel"
       ssh_user   = "cloud-user"
       count      = 4
-    }
-    windows2022 = {
-      image_name = "windows-server-2022_x64_uefi_40G"
-      family     = "windows"
-      ssh_user   = "Administrator"
-      count      = 2
     }
   }
 }

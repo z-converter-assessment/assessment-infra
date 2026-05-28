@@ -43,9 +43,8 @@ resource "openstack_compute_instance_v2" "agent_vm" {
     port = openstack_networking_port_v2.agent_port[each.key].id
   }
 
-  # Linux: machine-id 재생성 (snapshot 복제 대비)
-  # Windows: cloud-init 미지원 — user_data 무시되므로 빈 값
-  user_data = each.value.family == "windows" ? "" : <<-EOF
+  # machine-id 재생성 (snapshot 복제 대비)
+  user_data = <<-EOF
     #cloud-config
     runcmd:
       - systemd-machine-id-setup --commit

@@ -18,8 +18,9 @@ keypair_name = "engine-key"
 # openstack flavor list 로 확인 후 환경의 실제 flavor 이름 매핑.
 flavor_agent = "c1_m1_r30"
 
-# ── OS 8종 정의 ────────────────────────────────────────────────────
-# 기본값은 variables.tf 참조. 일부만 override 가능:
+# ── Linux OS 7종 정의 ──────────────────────────────────────────────
+# 기본값은 variables.tf 참조 (각 OS × 4대 = 총 28대).
+# 일부만 override 가능:
 #
 # agent_os_map = {
 #   debian13 = {
@@ -31,6 +32,6 @@ flavor_agent = "c1_m1_r30"
 #   ...
 # }
 #
-# 총 30대 + Windows 2대 = 32대 기본 (variables.tf default 합산).
+# Windows VM은 별도 windows.tf에서 관리 — `windows_vm_enabled = true`로 활성화.
 # OpenStack 이미지 가용성에 따라 image_name 갱신 필요:
 #   openstack image list --status active

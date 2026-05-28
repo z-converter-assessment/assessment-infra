@@ -61,7 +61,7 @@ assessment-engine + agent fleet의 OpenStack 배포 인프라.
   ─────────────────────── agent-subnet 10.0.20.0/24 ────────────────────────────
   │                                                                             │
   │   ┌──────────────────────────────────┐  ┌──────────────────────────────┐   │
-  │   │      agent-vm  (Linux x30)       │  │    agent-vm  (Windows x2)    │   │
+  │   │      agent-vm  (Linux x28)       │  │  agent-vm  (Windows x1 opt)  │   │
   │   │           [agent-sg]             │  │         [agent-sg]           │   │
   │   │   Debian / Ubuntu / RHEL         │  │    Windows Server 2022       │   │
   │   │   SSH :22    <- [bastion-sg]      │  │  WinRM :5985 <- [bastion-sg] │   │
