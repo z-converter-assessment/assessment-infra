@@ -1,5 +1,0 @@
-- name: Deploy assessment-agent binary
-  hosts: agent
-  become: true
-  roles:
-    - agent

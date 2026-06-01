@@ -1,0 +1,12 @@
+[Unit]
+Description=stress-ng noise profile {{ noise_profile }}
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/stress-ng {{ noise_args_map[noise_profile] }}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

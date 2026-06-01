@@ -1,0 +1,20 @@
+- name: Load OS vars
+  ansible.builtin.include_vars: "{{ ansible_os_family }}.yml"
+
+- name: Install redis (Debian)
+  ansible.builtin.apt:
+    name: "{{ svc_pkg }}"
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install redis (RedHat)
+  ansible.builtin.dnf:
+    name: "{{ svc_pkg }}"
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Enable and start redis
+  ansible.builtin.systemd:
+    name: "{{ svc_name }}"
+    enabled: true
+    state: started

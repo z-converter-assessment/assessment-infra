@@ -1,0 +1,17 @@
+- name: Apply noise profile
+  hosts: noise_cpu_light,noise_cpu_medium,noise_cpu_heavy,noise_io,noise_memory,noise_mixed
+  become: true
+  roles:
+    - noise
+
+- name: Apply noise_agent_restart
+  hosts: noise_agent_restart_demo
+  become: true
+  roles:
+    - noise_agent_restart
+
+- name: Apply noise_offline_once
+  hosts: noise_offline_once
+  become: true
+  roles:
+    - noise_offline_once

@@ -1,0 +1,32 @@
+[Unit]
+Description=assessment-agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ agent_user }}
+Group={{ agent_group }}
+WorkingDirectory={{ agent_dir }}
+EnvironmentFile={{ agent_env_dir }}/agent.env
+EnvironmentFile={{ agent_env_dir }}/agent.env.local
+ExecStart={{ agent_binary_dest }}
+Restart=on-failure
+RestartSec=5
+
+# hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+PrivateTmp=yes
+PrivateDevices=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictNamespaces=yes
+RestrictRealtime=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+ProtectHome=yes
+ReadWritePaths={{ agent_dir }}
+
+[Install]
+WantedBy=multi-user.target

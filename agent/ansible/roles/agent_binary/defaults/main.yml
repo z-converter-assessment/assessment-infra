@@ -1,0 +1,2 @@
+agent_binary_fetch_mode: github_release
+agent_binary_verify_checksum: true

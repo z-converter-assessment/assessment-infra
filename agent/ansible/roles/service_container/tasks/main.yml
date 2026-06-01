@@ -1,0 +1,28 @@
+- name: Load OS vars
+  ansible.builtin.include_vars: "{{ ansible_os_family }}.yml"
+
+- name: Install container runtime (Debian)
+  ansible.builtin.apt:
+    name: "{{ svc_pkg }}"
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install container runtime (RedHat)
+  ansible.builtin.dnf:
+    name: "{{ svc_pkg }}"
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Enable and start container runtime (Debian -- docker)
+  ansible.builtin.systemd:
+    name: "{{ svc_name }}"
+    enabled: true
+    state: started
+  when: ansible_os_family == 'Debian'
+
+- name: Enable podman socket (RedHat -- socket activation)
+  ansible.builtin.systemd:
+    name: podman.socket
+    enabled: true
+    state: started
+  when: ansible_os_family == 'RedHat'

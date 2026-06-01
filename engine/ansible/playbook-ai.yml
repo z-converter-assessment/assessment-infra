@@ -1,0 +1,29 @@
+- name: AI VM — Ollama LLM 데몬 + diagnostic-worker
+  hosts: ai
+  become: true
+  vars:
+    app_service_name: assessment-diagnostic
+    app_run_alembic: false
+    app_exec_start: "{{ app_venv }}/bin/python -m assessment_engine.diagnostic"
+    app_env:
+      POSTGRES_HOST: "{{ hostvars['db-vm'].ansible_host }}"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: "{{ vault_db_name }}"
+      POSTGRES_USER: "{{ vault_db_user }}"
+      POSTGRES_PASSWORD: "{{ vault_db_password }}"
+      RABBITMQ_HOST: "{{ hostvars['mq-vm'].ansible_host }}"
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_VHOST: "{{ vault_mq_vhost }}"
+      RABBITMQ_USER: "{{ vault_mq_user }}"
+      RABBITMQ_PASSWORD: "{{ vault_mq_password }}"
+      REDIS_HOST: "{{ hostvars['cache-vm'].ansible_host }}"
+      REDIS_PORT: "6379"
+      SECRET_KEY: "{{ vault_app_secret_key }}"
+      ZDM_DEFAULT_IP: "{{ zdm_default_ip }}"
+      ZDM_DEFAULT_USER: "{{ zdm_default_user }}"
+      OLLAMA_HOST: "{{ ollama_api_host }}"
+      OLLAMA_PORT: "{{ ollama_port | string }}"
+      OLLAMA_MODEL: "{{ ollama_model }}"
+  roles:
+    - ollama
+    - app

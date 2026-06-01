@@ -1,0 +1,12 @@
+- name: Health check -- agent ping
+  hosts: agent_workers
+  gather_facts: false
+  tasks:
+    - name: ping
+      ansible.builtin.ping:
+
+    - name: check agent service
+      ansible.builtin.systemd:
+        name: assessment-agent
+      register: svc
+      failed_when: svc.status.ActiveState != 'active'

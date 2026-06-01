@@ -1,0 +1,9 @@
+[Unit]
+Description=assessment-agent restart timer (noise demo)
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec={{ agent_restart_interval | default('5min') }}
+
+[Install]
+WantedBy=timers.target

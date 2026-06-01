@@ -1,0 +1,21 @@
+- name: Render agent-restart.service
+  ansible.builtin.template:
+    src: agent-restart.service.j2
+    dest: /etc/systemd/system/agent-restart.service
+    mode: "0644"
+
+- name: Render agent-restart.timer
+  ansible.builtin.template:
+    src: agent-restart.timer.j2
+    dest: /etc/systemd/system/agent-restart.timer
+    mode: "0644"
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable and start agent-restart.timer
+  ansible.builtin.systemd:
+    name: agent-restart.timer
+    enabled: true
+    state: started

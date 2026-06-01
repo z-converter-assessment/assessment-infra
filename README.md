@@ -2,64 +2,100 @@
 
 assessment-engine + agent fleet의 OpenStack 배포 인프라.
 
-- **Terraform**: OpenStack 자원 프로비저닝 (SG·VM·Cinder·FIP) — network·subnet·router는 Horizon 수동 생성 후 `data` source로 참조
-- **Ansible**: VM 내 apt 패키지 설치·Cinder 마운트·wheel 배포·systemd 등록
-- Docker 없음 — 모든 컴포넌트를 인스턴스 위에 직접 설치
+- **Terraform**: OpenStack 자원 프로비저닝 (SG·VM·Cinder·FIP) — network·subnet·router·keypair는 Horizon 수동 생성
+- **Ansible**: VM 내 패키지 설치·Cinder 마운트·wheel/바이너리 배포·systemd 등록
+- Docker 없음 — 모든 컴포넌트를 인스턴스 위에 직접 설치 (ADR-0003)
+
+상세 아키텍처: `docs/architecture/` | 초기 구축 절차: `docs/setup.md`
 
 ---
 
-## 아키텍처
+## 컴포넌트 구조
 
 ```
-사내망 (FIP :8000)
-       │
-       ▼
-┌─────────────────────────────────────────── engine-subnet 10.0.10.64/26 ──┐
-│                                                                           │
-│  api-vm (4c/4G)  ←── FIP 부여                                             │
-│   uvicorn :8000                                                           │
-│       │  AMQP·SQL·Redis                                                   │
-│       ▼                                                                   │
-│  mq-vm (2c/2G)      cache-vm (1c/1G)      db-vm (2c/4G)                  │
-│   rabbitmq-server    redis-server           postgresql-16 + timescaledb   │
-│   5672·15672         6379                   5432                          │
-│   └─ Cinder 20G                             └─ Cinder 50G                │
-│                                                                           │
-│  worker-vm (2c/2G)                                                        │
-│   assessment-worker (systemd)                                             │
-│                                                                           │
-│  engine-main (bastion) — Terraform·Ansible 실행 host, FIP 부여            │
-└───────────────────────────────────────────────────────────────────────────┘
+                              Internet
+                                  |
+              FIP :22             |            FIP :8000
+                |                 |                 |
+                v                 |                 v
+    ┌──────────────────────┐      |      ┌──────────────────────┐
+    │      bastion-vm      │      |      │        api-vm        │
+    │     [bastion-sg]     │      |      │       [api-sg]       │
+    │      Debian 13       │      |      │    FastAPI  :8000    │
+    │  Terraform / Ansible │      |      └──────────────────────┘
+    └──────────┬───────────┘                        │
+               │                                    │  :5672  [api-sg  → mq-sg]
+               │  SSH :22 [bastion-sg]              │  :6379  [api-sg  → cache-sg]
+               │  to all engine + agent VMs          │  :5432  [api-sg  → db-sg]
+               │
+  ─────────────────────────── engine-subnet 10.0.10.0/24 ──────────────────────
+  │             │                                    │                         │
+  │             ▼                     ┌──────────────┤                         │
+  │                                   │    │         │                         │
+  │   ┌──────────────────┐  ┌──────────────┐  ┌──────────┐                    │
+  │   │      mq-vm       │  │  cache-vm    │  │  db-vm   │                    │
+  │   │     [mq-sg]      │  │ [cache-sg]   │  │ [db-sg]  │                    │
+  │   │  RabbitMQ        │  │ Redis :6379   │  │ PgSQL    │                    │
+  │   │  :5672 / :15672  │  └──────────────┘  │ :5432    │                    │
+  │   │  [Cinder 20G]    │                    │[Cinder   │                    │
+  │   └──────────────────┘                    │ 30G]     │                    │
+  │             ^                   ^          └──────────┘                    │
+  │             │ :5672             │ :6379         ^                          │
+  │   [consumer-sg → mq-sg]  [consumer-sg → cache-sg]  │ :5432                │
+  │   [ai-sg    → mq-sg]   [ai-sg    → cache-sg]   │ [consumer-sg → db-sg]   │
+  │             │                   │               │ [ai-sg    → db-sg]      │
+  │   ┌─────────┴───────────────────┴───────────────┴────────┐                │
+  │   │              consumer-vm  [consumer-sg]               │                │
+  │   │              assessment-consumer                      │                │
+  │   └───────────────────────────────────────────────────────┘                │
+  │                          │ :11434  [consumer-sg → ai-sg]                   │
+  │                          v                                                  │
+  │   ┌─────────────────────────────────────────────────────────────┐           │
+  │   │                      ai-vm  [ai-sg]                         │           │
+  │   │   Ollama :11434 (local)  /  assessment-diagnostic           │           │
+  │   │   outbound :5672/:6379/:5432  [ai-sg → mq/cache/db-sg]     │           │
+  │   └─────────────────────────────────────────────────────────────┘           │
+  │                                                                             │
+  ───────────────────────────────────────────────────────────────────────────────
 
-┌─────────────────────────────────────────── agent-subnet 10.0.10.0/26 ────┐
-│  Agent-vm (기존 1대, FIP 있음)                                             │
-│  Agent-01/02/03 (추후 추가) → AMQP publish → mq-vm                        │
-└───────────────────────────────────────────────────────────────────────────┘
+  ─────────────────────── agent-subnet 10.0.20.0/24 ────────────────────────────
+  │                                                                             │
+  │   ┌──────────────────────────────────┐  ┌──────────────────────────────┐   │
+  │   │      agent-vm  (Linux x28)       │  │  agent-vm  (Windows x1 opt)  │   │
+  │   │           [agent-sg]             │  │         [agent-sg]           │   │
+  │   │   Debian / Ubuntu / RHEL         │  │    Windows Server 2022       │   │
+  │   │   SSH :22    <- [bastion-sg]      │  │  WinRM :5985 <- [bastion-sg] │   │
+  │   │   assessment-agent               │  │  assessment-agent.exe        │   │
+  │   └─────────────────┬────────────────┘  └──────────────┬───────────────┘   │
+  │                     │  AMQP :5672  [agent-sg → mq-sg]  │                   │
+  │                     └──────────────────────────────────┘                   │
+  │                                    │ to mq-vm                              │
+  ───────────────────────────────────────────────────────────────────────────────
 ```
 
 ---
 
-## 사전 조건 (Horizon 수동)
+## 사전 조건 — Horizon 수동 생성
 
-Terraform 실행 전 Horizon 콘솔에서 아래가 생성돼 있어야 한다.
+Terraform 실행 전 아래 자원이 Horizon에 존재해야 한다.
 
-| 자원 | 이름 | CIDR / 비고 |
+| 자원 | 이름 | 비고 |
 |---|---|---|
 | Network | `zconverter-private-net` | — |
-| Subnet | `assessment-engine` | `10.0.10.64/26` — 엔진 VM용 |
-| Subnet | `target-vms` | `10.0.10.0/26` — Agent VM용 |
-| Router | `assessment-engine` | External Gateway 부착, 두 subnet interface 연결 |
+| Subnet (engine) | `assessment-engine` | `10.0.10.0/24` |
+| Subnet (agent) | `target-vms` | `10.0.20.0/24` |
+| Router | `assessment-engine` | External Gateway + 두 subnet interface |
 | External network | `external_net` | FIP 발급용 |
-| Keypair | `engine-key` | Horizon에 등록됨 |
-| Bastion VM | `engine-main` | engine-subnet, FIP 부여 — Terraform·Ansible 실행 host |
+| Keypair | `engine-key` | Terraform이 이름만 참조 |
+| Bastion VM | `engine-main` | engine-subnet, FIP 부여, Debian 13 |
 
 ---
 
-## Bastion 초기 세팅
+## Part 1. Bastion 구축
 
-> OS: Ubuntu 24.04 LTS (Noble)
+> Bastion(`engine-main`)은 Terraform 관리 대상이 아님. Horizon에서 수동 생성 후 아래 초기 세팅 진행.
 
-### 1. 필수 도구 설치
+### 1-1. 필수 도구 설치
 
 ```bash
 sudo apt update && sudo apt install -y \
@@ -84,15 +120,16 @@ terraform version
 **Ansible 컬렉션**
 
 ```bash
-ansible-galaxy collection install -r ansible/requirements.yml
+ansible-galaxy collection install -r engine/ansible/requirements.yml
+ansible-galaxy collection install -r agent/ansible/requirements.yml
 ```
 
-### 2. SSH 키 배치
+### 1-2. SSH 키 배치
 
 로컬에서 bastion으로 키 전송:
 
 ```bash
-scp engine-key.pem ubuntu@<bastion-fip>:~/.ssh/engine-key.pem
+scp engine-key.pem debian@<bastion-fip>:~/.ssh/engine-key.pem
 ```
 
 bastion에서 권한 설정:
@@ -101,7 +138,7 @@ bastion에서 권한 설정:
 chmod 0400 ~/.ssh/engine-key.pem
 ```
 
-### 3. OpenStack 인증 (Application Credential)
+### 1-3. OpenStack 인증 (Application Credential)
 
 ```bash
 mkdir -p ~/.config/openstack
@@ -120,10 +157,16 @@ EOF
 chmod 0600 ~/.config/openstack/clouds.yaml
 ```
 
-Application Credential: Horizon → Identity → Application Credentials에서 발급.  
-secret은 생성 시 1회만 노출 — 즉시 기록.
+> Application Credential: Horizon → Identity → Application Credentials에서 발급.
+> secret은 생성 시 **1회만 노출** — 즉시 기록.
 
-### 4. 레포 Clone
+인증 확인:
+
+```bash
+openstack server list
+```
+
+### 1-4. 레포 Clone
 
 ```bash
 git clone https://github.com/<org>/assessment-infra.git
@@ -132,182 +175,238 @@ cd assessment-infra
 
 ---
 
-## Terraform
+## Part 2. Engine 환경 구축
 
-### tfvars 작성
+### 2-1. Terraform
 
-```bash
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-```
-
-채워야 할 값:
-
-```
-external_network_name = "external_net"          # openstack network list --external
-bastion_sg_name       = "<engine-main의 SG 이름>"  # openstack server show engine-main -f json | jq '.security_groups'
-```
-
-flavor 이름은 `openstack flavor list`로 확인 후 매핑.
-
-### 실행
+#### tfvars 작성
 
 ```bash
-cd terraform
+cp engine/terraform/terraform.tfvars.example engine/terraform/terraform.tfvars
+```
 
-# 인증 확인 (자원 0개 plan)
+필수 입력값:
+
+```hcl
+external_network_name = "external_net"   # openstack network list --external
+bastion_sg_name       = "TODO"           # openstack server show engine-main -f json | jq '.security_groups'
+```
+
+flavor 이름은 `openstack flavor list`로 확인 후 매핑. image 이름은 `openstack image list --status active`로 확인.
+
+#### 실행
+
+```bash
+cd engine/terraform
+
 terraform init
-terraform plan
-
-# 자원 생성
+terraform plan    # dry-run — 생성 예정 자원 확인
 terraform apply
 ```
 
-### 생성 자원 목록
+생성되는 자원:
 
 | 자원 | 이름 | 비고 |
 |---|---|---|
-| SG | `api-sg` / `mq-sg` / `cache-sg` / `db-sg` / `worker-sg` | — |
-| VM | `api-vm` `mq-vm` `cache-vm` `db-vm` `worker-vm` | Ubuntu 24.04, engine-subnet |
-| Cinder | `mq-data` (20G) / `db-data` (50G) | /dev/vdb로 attach |
-| FIP | api-vm에 1개 | external_net에서 발급 |
+| SG | `api-sg` · `mq-sg` · `cache-sg` · `db-sg` · `consumer-sg` · `ai-sg` | 7종 |
+| VM | `api-vm` · `mq-vm` · `cache-vm` · `db-vm` · `consumer-vm` · `ai-vm` | Debian 13 |
+| Cinder | `mq-data` · `db-data` | `/dev/vdb` attach |
+| FIP | api-vm 1개 | external_net에서 발급 |
 
-### IP 확인
+IP 확인:
 
 ```bash
 terraform output
 ```
 
----
+### 2-2. Ansible
 
-## Ansible
-
-### vault.yml 작성
+#### vault.yml 작성
 
 ```bash
-cd ansible
+cd engine/ansible
 cp group_vars/all/vault.yml.example group_vars/all/vault.yml
-# CHANGEME 채우기
+# CHANGEME 항목을 실제 값으로 교체
+vi group_vars/all/vault.yml
+
 ansible-vault encrypt group_vars/all/vault.yml
 echo "<패스워드>" > ~/.vault-pass && chmod 0400 ~/.vault-pass
 ```
 
-### wheel 사전 배치 (배포 전 필수)
+> `vault_mq_*` 값은 agent vault.yml과 **반드시 동일하게** 설정 — agent가 같은 MQ에 접속.
 
-VM은 외부망 접근 없음 — wheel 파일을 bastion에서 미리 다운로드해 `ansible/files/wheels/`에 넣어야 한다.
+#### wheel 사전 배치
+
+VM은 외부망 접근 불가 — bastion에서 미리 다운로드해야 한다.
 
 ```bash
-cd ansible/files/wheels
+cd engine/ansible/files/wheels
 
-# GitHub Release에서 다운로드 (bastion은 외부 접근 가능)
 gh release download <TAG> \
   --repo <ORG>/assessment-engine \
   --pattern "*.whl" \
   --pattern "SHA256SUMS"
 
-# 체크섬 검증
 sha256sum -c SHA256SUMS --ignore-missing
 ```
 
-다운로드 후 `ansible/group_vars/all/engine.yml`의 버전 업데이트:
+다운로드 후 `engine/ansible/group_vars/all/engine.yml`의 버전 업데이트:
 
 ```yaml
-engine_version: "0.1.0"   # v 접두사 없이 작성 — wheel 파일명이 v 없이 생성됨
+engine_version: "0.1.0"   # v 접두사 없이 작성
 ```
 
-> `ansible/files/wheels/*.whl`과 `SHA256SUMS`는 `.gitignore` 처리됨 — git에 커밋하지 말 것.
+> `files/wheels/*.whl` · `SHA256SUMS`는 `.gitignore` 처리 — git에 커밋하지 말 것.
 
-### inventory.yml 자동 생성
+#### inventory 생성
 
 ```bash
-# 레포 루트에서 실행 — terraform output을 읽어 ansible/inventory.yml 생성
+# 레포 루트에서 실행 — terraform output을 읽어 engine/ansible/inventory.yml 생성
 ./scripts/gen-inventory.sh
 ```
 
-> `StrictHostKeyChecking=no`가 inventory에 설정돼 있어 첫 접속 시 known_hosts 확인을 건너뜀.  
-> VM 재생성 후 IP가 바뀌면 스크립트를 다시 실행해 inventory를 갱신할 것.
+> VM 재생성 후 IP가 변경되면 스크립트를 다시 실행해 갱신.
 
-### 실행 순서
-
-`ansible.cfg`에 `inventory`·`vault_password_file`·`pipelining`이 설정돼 있으므로 `cd ansible` 후 실행.  
-DB → MQ가 먼저 떠야 api/worker가 접속 가능하므로 순서 지킬 것.
+#### 접속 확인
 
 ```bash
-cd ansible
+cd engine/ansible
+ansible all -m ping
+```
 
-ansible-playbook playbook-db.yml      # 1. PostgreSQL 16 + TimescaleDB
-ansible-playbook playbook-mq.yml      # 2. RabbitMQ (Ubuntu universe)
+#### Playbook 실행 순서
+
+`ansible.cfg`에 `inventory` · `vault_password_file` · `pipelining`이 설정되어 있으므로 `cd engine/ansible` 후 실행.
+DB → MQ가 먼저 떠야 api · consumer가 접속 가능하므로 **순서를 반드시 지킬 것**.
+
+```bash
+cd engine/ansible
+
+ansible-playbook playbook-db.yml      # 1. PostgreSQL 16 + TimescaleDB (PGDG repo)
+ansible-playbook playbook-mq.yml      # 2. RabbitMQ (Debian main repo — ADR-0004)
 ansible-playbook playbook-cache.yml   # 3. Redis
-ansible-playbook playbook-api.yml     # 4. API  (wheel copy → pip install → alembic → systemd)
-ansible-playbook playbook-worker.yml  # 5. Worker (wheel copy → pip install → systemd)
+ansible-playbook playbook-api.yml     # 4. API  (wheel → venv → alembic upgrade → systemd)
+ansible-playbook playbook-consumer.yml  # 5. Consumer (wheel → venv → systemd)
 ```
 
-### 단일 호스트 접속 확인
+> `playbook-ai.yml` (Ollama)은 모델 선택 확정 후 추가 예정 (TBD).
+
+---
+
+## Part 3. Agent 테스트 환경 구축
+
+### 3-1. Terraform
+
+#### tfvars 작성
 
 ```bash
-cd ansible
-ansible db -m ping
+cp agent/terraform/terraform.tfvars.example agent/terraform/terraform.tfvars
+```
+
+필수 입력값:
+
+```hcl
+bastion_sg_name = "TODO"   # openstack server show engine-main -f json | jq '.security_groups'
+```
+
+OS별 이미지 이름은 `openstack image list --status active`로 확인 후 `agent_os_map`을 override:
+
+```hcl
+agent_os_map = {
+  debian13 = {
+    image_name = "debian13_x64_uefi_3G"
+    family     = "debian"
+    ssh_user   = "debian"
+    count      = 4
+  }
+  # ubuntu22, centos9, rocky9, windows2022 등 환경 가용 이미지에 맞게 설정
+}
+```
+
+> 기본값(총 32대)은 `agent/terraform/variables.tf` 참조. 이미지 가용성 확인 후 count 조정.
+
+#### 실행
+
+```bash
+cd agent/terraform
+
+terraform init
+terraform plan
+terraform apply
+```
+
+생성되는 자원:
+
+| 자원 | 비고 |
+|---|---|
+| `agent-sg` | agent fleet 공용 SG |
+| `agent-vm-*` × N | OS별 그룹 (Linux + Windows) |
+
+IP 확인:
+
+```bash
+terraform output
+```
+
+### 3-2. Ansible
+
+#### vault.yml 작성
+
+```bash
+cd agent/ansible
+cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+# vault_mq_* 를 engine vault.yml과 동일한 값으로 설정
+vi group_vars/all/vault.yml
+
+ansible-vault encrypt group_vars/all/vault.yml
+# ~/.vault-pass가 이미 있으면 생략
+```
+
+#### agent 바이너리 사전 배치
+
+```bash
+# bastion에서 GitHub Releases 또는 내부 저장소에서 다운로드
+ls agent/ansible/files/binaries/
+# assessment-agent-linux   (Linux 배포 바이너리)
+# assessment-agent.exe     (Windows 배포 바이너리)
+```
+
+#### inventory 생성
+
+```bash
+# 레포 루트에서 실행 — agent/terraform output을 읽어 agent/ansible/inventory.yml 생성
+./scripts/gen-inventory.sh --target agent
+```
+
+#### 접속 확인
+
+```bash
+cd agent/ansible
+ansible all -m ping
+```
+
+#### Playbook 실행
+
+```bash
+cd agent/ansible
+
+ansible-playbook playbook-agent.yml          # agent 바이너리 배포 + systemd (Linux)
+# ansible-playbook playbook-agent-win.yml    # Windows 배포 (WinRM 설정 확정 후 추가 예정 — TBD)
+# ansible-playbook playbook-local-services.yml  # 로컬 PostgreSQL·Redis 설치 (TBD)
 ```
 
 ---
 
-## 디렉토리 구조
-
-```
-assessment-infra/
-├── docs/
-│   └── operations/
-│       ├── troubleshooting.md  # 배포 트러블슈팅 기록
-│       ├── env.md              # 환경변수 카탈로그
-│       └── release.md          # wheel 배포 절차
-├── scripts/
-│   ├── gen-inventory.sh      # terraform output → ansible/inventory.yml 자동 생성
-│   └── gen_inventory.py
-├── terraform/
-│   ├── versions.tf
-│   ├── providers.tf
-│   ├── variables.tf
-│   ├── data.tf               # Horizon 생성 자원 data source
-│   ├── security_groups.tf    # SG 6개 (api/mq/cache/db/worker/agent) + ingress rule
-│   ├── instances.tf          # VM 5대 (Ubuntu 24.04)
-│   ├── volumes.tf            # Cinder 2개 + attach
-│   ├── floating_ips.tf       # api-vm FIP
-│   ├── outputs.tf            # 사설 IP·FIP·agent_sg_id
-│   └── terraform.tfvars.example
-└── ansible/
-    ├── ansible.cfg           # inventory·vault_password_file·pipelining 설정
-    ├── inventory.yml         # gen-inventory.sh로 생성 (gitignore)
-    ├── requirements.yml
-    ├── files/
-    │   └── wheels/           # 배포 전 운영자가 wheel·SHA256SUMS를 여기 배치 (gitignore)
-    ├── group_vars/all/
-    │   ├── common.yml        # engine_subnet_cidr·pg_version 등 공통 변수
-    │   ├── engine.yml        # engine_version·engine_wheel_file
-    │   ├── zdm.yml           # zdm_default_ip·zdm_default_user
-    │   └── vault.yml.example
-    ├── playbook-db.yml
-    ├── playbook-mq.yml
-    ├── playbook-cache.yml
-    ├── playbook-api.yml
-    ├── playbook-worker.yml
-    └── roles/
-        ├── postgres/         # Cinder 마운트 → postgresql-16 + timescaledb 설치 → DB·유저 생성
-        ├── rabbitmq/         # Erlang + RabbitMQ 설치 (Ubuntu universe) → Cinder 마운트 → vhost·유저 설정
-        ├── redis/            # apt install + bind 0.0.0.0
-        └── app/              # python3.12 + acl → venv → wheel copy → pip install → systemd
-```
-
----
-
-## Secret·State 관리
+## Secret · State 관리
 
 | 파일 | 위치 | 권한 | git |
 |---|---|---|---|
 | Application Credential | `~/.config/openstack/clouds.yaml` | 0600 | 제외 |
 | SSH private key | `~/.ssh/engine-key.pem` | 0400 | 제외 |
 | Ansible Vault password | `~/.vault-pass` | 0400 | 제외 |
-| Terraform state | `terraform/terraform.tfstate` | — | 제외 |
-| Vault 암호화 파일 | `ansible/group_vars/all/vault.yml` | — | 포함 (암호화) |
-| wheel 배포 파일 | `ansible/files/wheels/` | — | 제외 |
+| Terraform state | `{engine,agent}/terraform/terraform.tfstate` | — | 제외 |
+| Vault 암호화 파일 | `*/ansible/group_vars/all/vault.yml` | — | 포함 (암호화) |
+| wheel · 바이너리 | `*/ansible/files/` | — | 제외 |
 
-Terraform state는 현재 bastion 로컬 보관.  
+Terraform state는 현재 bastion 로컬 보관.
 멀티 사용자 단계 진입 시 OpenStack Swift backend로 이전 예정.

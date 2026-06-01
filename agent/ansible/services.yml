@@ -1,0 +1,57 @@
+# Populate service groups dynamically from each host's agent_services variable,
+# then install the declared services. Windows hosts are excluded (linux group only).
+#
+# To assign services per OS, set agent_services in group_vars/<os_key>.yml.
+# To assign per individual host, set agent_services in host_vars/<hostname>/vars.yml.
+
+- name: Populate service groups from agent_services
+  hosts: linux
+  gather_facts: false
+  tasks:
+    - name: Register host in declared service groups
+      ansible.builtin.add_host:
+        name: "{{ inventory_hostname }}"
+        groups: "{{ agent_services }}"
+      when: agent_services | length > 0
+
+- name: Install nginx (service_web)
+  hosts: service_web
+  become: true
+  roles:
+    - service_web
+
+- name: Install PostgreSQL (service_db)
+  hosts: service_db
+  become: true
+  roles:
+    - service_db
+
+- name: Install Redis (service_cache)
+  hosts: service_cache
+  become: true
+  roles:
+    - service_cache
+
+- name: Install Mosquitto (service_mq)
+  hosts: service_mq
+  become: true
+  roles:
+    - service_mq
+
+- name: Install Docker/Podman (service_container)
+  hosts: service_container
+  become: true
+  roles:
+    - service_container
+
+- name: Install Prometheus node-exporter (service_monitor)
+  hosts: service_monitor
+  become: true
+  roles:
+    - service_monitor
+
+- name: Install Apache (service_app)
+  hosts: service_app
+  become: true
+  roles:
+    - service_app

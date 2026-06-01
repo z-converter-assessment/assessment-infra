@@ -3,29 +3,42 @@
 # Cinder 볼륨을 /var/lib/postgresql에 마운트한 뒤 postgresql 본체를 설치.
 # 이렇게 하면 pg_createcluster가 Cinder 위에 클러스터를 초기화함.
 
-- name: add PGDG apt signing key
-  apt_key:
+- name: create /etc/apt/keyrings directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: download PGDG apt signing key
+  get_url:
     url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
-    state: present
+    dest: /etc/apt/keyrings/pgdg.asc
+    mode: "0644"
 
 - name: add PGDG apt repository
-  apt_repository:
-    repo: "deb https://apt.postgresql.org/pub/repos/apt trixie-pgdg main"
-    state: present
-    filename: pgdg
-    update_cache: true
+  copy:
+    content: "deb [signed-by=/etc/apt/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main\n"
+    dest: /etc/apt/sources.list.d/pgdg.list
+    mode: "0644"
+  register: pgdg_repo
 
-- name: add TimescaleDB apt signing key
-  apt_key:
+- name: download TimescaleDB apt signing key
+  get_url:
     url: https://packagecloud.io/timescale/timescaledb/gpgkey
-    state: present
+    dest: /etc/apt/keyrings/timescaledb.asc
+    mode: "0644"
 
 - name: add TimescaleDB apt repository
-  apt_repository:
-    repo: "deb https://packagecloud.io/timescale/timescaledb/debian/ trixie main"
-    state: present
-    filename: timescaledb
+  copy:
+    content: "deb [signed-by=/etc/apt/keyrings/timescaledb.asc] https://packagecloud.io/timescale/timescaledb/debian/ trixie main\n"
+    dest: /etc/apt/sources.list.d/timescaledb.list
+    mode: "0644"
+  register: tsdb_repo
+
+- name: update apt cache
+  apt:
     update_cache: true
+  when: pgdg_repo.changed or tsdb_repo.changed
 
 - name: install postgresql-common
   apt:
@@ -58,11 +71,12 @@
     group: postgres
     mode: "0755"
 
-- name: install postgresql and timescaledb
+- name: install postgresql, timescaledb, pgvector
   apt:
     name:
       - "postgresql-{{ pg_version }}"
       - "timescaledb-2-postgresql-{{ pg_version }}"
+      - "postgresql-{{ pg_version }}-pgvector"
     state: present
 
 - name: install python3-psycopg2 for community.postgresql modules
@@ -109,4 +123,11 @@
   community.postgresql.postgresql_db:
     name: "{{ vault_db_name }}"
     owner: "{{ vault_db_user }}"
+    state: present
+
+- name: enable pgvector extension (superuser required)
+  become_user: postgres
+  community.postgresql.postgresql_ext:
+    name: vector
+    db: "{{ vault_db_name }}"
     state: present

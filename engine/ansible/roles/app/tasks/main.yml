@@ -1,9 +1,10 @@
 ---
-- name: install python3, venv, acl
+- name: install python3, venv, acl, packaging
   apt:
     name:
       - python3
       - python3-venv
+      - python3-packaging
       - acl
     state: present
     update_cache: true

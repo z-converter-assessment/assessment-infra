@@ -3,20 +3,35 @@ cloud_name = "openstack"
 
 # ── Horizon 수동 생성 자원 이름 ───────────────────────────────────
 # Horizon → Network → Networks 에서 확인
-network_name      = "zconverter-private-net"
+network_name      = "zconverter-private-network"
 agent_subnet_name = "target-vms"
 
 # 기존 bastion VM에 적용된 SG 이름
 # openstack server show engine-main -f json | jq '.security_groups'
 bastion_sg_name = "TODO"
 
-# ── 이미지 · keypair ──────────────────────────────────────────────
-image_name   = "debian12_x64_uefi_3G"
+# ── keypair ───────────────────────────────────────────────────────
 keypair_name = "engine-key"
 
 # ── Flavor ────────────────────────────────────────────────────────
-# openstack flavor list 로 확인 후 매핑
-#   c1_m1_r30 : vcpu=1, ram=1GB,  disk=30GB
-flavor_agent = "c1_m1_r30"  # 1 vCPU / 1 GB
+# Agent VM 공용 — 최저 플레이버 (1 vCPU / 1 GB / 20 GB)
+# openstack flavor list 로 확인 후 환경의 실제 flavor 이름 매핑.
+flavor_agent = "c1_m1_r30"
 
-agent_count = 3
+# ── Linux OS 7종 정의 ──────────────────────────────────────────────
+# 기본값은 variables.tf 참조 (각 OS × 4대 = 총 28대).
+# 일부만 override 가능:
+#
+# agent_os_map = {
+#   debian13 = {
+#     image_name = "debian13_x64_uefi_3G"
+#     family     = "debian"
+#     ssh_user   = "debian"
+#     count      = 4
+#   }
+#   ...
+# }
+#
+# Windows VM은 별도 windows.tf에서 관리 — `windows_vm_enabled = true`로 활성화.
+# OpenStack 이미지 가용성에 따라 image_name 갱신 필요:
+#   openstack image list --status active

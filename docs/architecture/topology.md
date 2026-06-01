@@ -26,7 +26,7 @@ flowchart TB
     mq[mq-vm<br/>RabbitMQ :5672 :15672<br/>+ Cinder]
     cache[cache-vm<br/>Redis :6379]
     db[db-vm<br/>PostgreSQL :5432<br/>+ Cinder]
-    worker[worker-vm<br/>consumer + scheduler]
+    worker[consumer-vm<br/>consumer + scheduler]
     ai[ai-vm<br/>Ollama]
   end
 
@@ -53,24 +53,24 @@ flowchart TB
 
 ## Security Group 매트릭스
 
-SG 8종 — `bastion-sg`(Horizon 등록·data 참조) + 본 레포 생성 7종(api·mq·cache·db·worker·agent·ai).
+SG 8종 — `bastion-sg`(Horizon 등록·data 참조) + 본 레포 생성 7종(api·mq·cache·db·consumer·agent·ai).
 
 ### Remote SG 참조 (`remote_group_id` 방식)
 
 | Source SG | Port | Target SG | 용도 |
 |---|---|---|---|
-| bastion-sg | 22 | api·mq·cache·db·worker·agent·ai | SSH 관리 |
+| bastion-sg | 22 | api·mq·cache·db·consumer·agent·ai | SSH 관리 |
 | api-sg | 5672 | mq-sg | AMQP publish |
 | api-sg | 15672 | mq-sg | Management UI |
 | api-sg | 6379 | cache-sg | Redis |
 | api-sg | 5432 | db-sg | PostgreSQL |
-| worker-sg | 5672 | mq-sg | AMQP consume |
-| worker-sg | 15672 | mq-sg | Management UI |
-| worker-sg | 6379 | cache-sg | Redis |
-| worker-sg | 5432 | db-sg | PostgreSQL |
+| consumer-sg | 5672 | mq-sg | AMQP consume |
+| consumer-sg | 15672 | mq-sg | Management UI |
+| consumer-sg | 6379 | cache-sg | Redis |
+| consumer-sg | 5432 | db-sg | PostgreSQL |
 | agent-sg | 5672 | mq-sg | AMQP publish (agent → engine) |
-| ai-sg | 8000 | api-sg | API 호출 |
 | ai-sg | 5432 | db-sg | DB 직접 조회 |
+| consumer-sg | 11434 | ai-sg | Ollama API 호출 |
 
 ### IP-prefix 기반 규칙 (`remote_ip_prefix` 방식)
 
@@ -85,10 +85,8 @@ SG 8종 — `bastion-sg`(Horizon 등록·data 참조) + 본 레포 생성 7종(a
 
 | VM | 디바이스 | 마운트 포인트 | 크기 | 용도 |
 |---|---|---|---|---|
-| mq-vm | `/dev/vdb` | `/var/lib/rabbitmq` | TBD | RabbitMQ mnesia |
-| db-vm | `/dev/vdb` | `/var/lib/postgresql` | TBD | PostgreSQL data |
-
-> 볼륨 크기는 학습 환경 데이터량 기준 산정 — 결정 보류 (CLAUDE.md 보류된 결정 참조).
+| mq-vm | `/dev/vdb` | `/var/lib/rabbitmq` | 20 GB | RabbitMQ mnesia |
+| db-vm | `/dev/vdb` | `/var/lib/postgresql` | 30 GB | PostgreSQL data |
 
 ## 다이어그램 파일
 

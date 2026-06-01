@@ -14,14 +14,14 @@
 | 0-d | Bootstrap VM (Bastion) 생성 → engine-subnet 배치 → FIP 부여 (Debian 13, ZDM flavor) |
 | 0-e | OpenStack keypair 등록 (이름: `engine-key`) — Terraform이 reference만 함 |
 
-## 1. Terraform 단계 (bastion PowerShell)
+## 1. Terraform 단계 (bastion · Debian 13)
 
 | 순서 | 파일 | 내용 |
 |---|---|---|
 | 1 | `versions.tf` + `providers.tf` | `terraform init` → 자원 0개 plan 검증 |
 | 2 | `data.tf` | network·subnet data source 선언 (Horizon 자원 참조) |
-| 3 | `security_groups.tf` | SG 정의 (API·MQ·Cache·DB·Worker·Agent·AI) |
-| 4 | `instances.tf` | 엔진 VM + Port (API·MQ·Cache·DB·Worker·AI) |
+| 3 | `security_groups.tf` | SG 정의 (API·MQ·Cache·DB·Consumer·Agent·AI) |
+| 4 | `instances.tf` | 엔진 VM + Port (API·MQ·Cache·DB·Consumer·AI) |
 | 5 | `volumes.tf` | Cinder 볼륨 (MQ·DB 데이터용) + attach |
 | 6 | `floating_ips.tf` | API VM에 FIP |
 | 7 | `outputs.tf` | IP들 (Ansible inventory 입력) |
@@ -36,7 +36,7 @@
 | 11 | `playbook-mq.yml` | Cinder 마운트 + rabbitmq-server apt + mnesia 디렉토리 이전 + systemd |
 | 12 | `playbook-cache.yml` | redis-server apt + systemd |
 | 13 | `playbook-api.yml` | wheel install + alembic upgrade head (`app_run_alembic: true`) + systemd |
-| 14 | `playbook-worker.yml` | wheel install + systemd (alembic 안 함) |
+| 14 | `playbook-consumer.yml` | wheel install + systemd (alembic 안 함) |
 | 15 | `playbook-ai.yml` | Ollama 설치 + 모델 pull + systemd (TBD) |
 | 16 | `playbook-agent.yml` | agent 바이너리 배포 (Linux only — Windows playbook 미구현) |
 | 17 | `playbook-local-services.yml` | Agent VM 로컬 PostgreSQL·Redis 설치 (TBD) |

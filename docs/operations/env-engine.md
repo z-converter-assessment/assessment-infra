@@ -1,176 +1,243 @@
-# 환경변수 카탈로그
+# Engine VM 환경변수 카탈로그
 
-정책: CLAUDE.md #A. 본 문서는 환경변수 키 카탈로그 단일 진실. 환경변수 정책·secret 단계·dev/prod 분리는 `docs/operations/prod-contract.md`.
+engine VM에 주입되는 환경변수의 단일 진실. 출처·주입 경로·컴포넌트별 필요 여부를 기록한다.
 
-dev: `cp .env.example .env`. prod 채널·정책: `docs/operations/prod-contract.md` "Secret 채널".
+---
+
+## 수정 우선순위
+
+| 순위 | 변수 | 문제 | 현재 영향 |
+|:---:|---|---|---|
+| 🔴 1 | `OLLAMA_BASE_URL` | engine 코드가 단일 URL 키 요구. 현재 `OLLAMA_HOST`+`OLLAMA_PORT` 분리 주입 → **Ollama 연결 불가** | ai-vm diagnostic 전면 불동작 |
+| 🔴 2 | `APP_ENV` | 전혀 미주입 → `dev` 기본값 동작. prod 보안 검증 미발동 | 전체 VM |
+| 🟡 3 | `RABBITMQ_EXCHANGE` 및 routing key 군 | 기본값 의존. agent와 실제 라우팅 키가 다를 경우 메시지 유실 | consumer/ai-vm |
+| 🟡 4 | `ZDM_PACKAGE_PATH` / `ZDM_PACKAGE_SCRIPT` | 미주입 → ZDM install task 실패 가능 | api-vm |
+| 🟡 5 | `LOG_FORMAT` | 미주입 → `text` 기본값. prod에서 `json` 권장 | 전체 VM |
+
+---
 
 ## 주입 흐름
 
-`.env`를 읽는 주체가 4곳이다. 각자 우선순위·시점·범위가 다르다.
-
 ```
-                        ┌─────────────────────────────────────┐
-   루트 .env  (호스트)   │  POSTGRES_HOST=postgres ...         │
-                        └────────┬──────────┬──────────┬──────┘
-                                 │          │          │
-                ┌────────────────┘          │          └──────────────────┐
-                │ (1)                       │ (2)                         │ (3)
-                ▼                           ▼                             ▼
-   docker-compose env_file        config.py BaseSettings        pipeline-up.sh source agent.env
-   → 컨테이너 환경변수 주입       → Python 인스턴스 필드        → /etc/assessment-agent.env
-   → environment: 블록이          → 환경변수 > .env > default   → Lima VM 안 에이전트로 전달
-     일부 키 강제 오버라이드      (cwd /app/.env 도 read)       → RABBITMQ_HOST는 별도 주입
-                │
-                └─ (4) 컨테이너 안 Python 시작 시 (1)+(2)가 결합:
-                       환경변수가 이미 주입돼 있으므로 (2)의 .env read는 redundant
-                       (호스트 직접 실행 시에만 (2)의 .env가 의미 있음 — fallback)
+Ansible Vault                group_vars/all/              inventory.yml
+vault.yml (암호화)           common.yml / zdm.yml          (gen-inventory.sh 생성)
+  vault_db_password           zdm_default_ip               hostvars['db-vm'].ansible_host
+  vault_mq_password           zdm_default_user             hostvars['mq-vm'].ansible_host
+  vault_app_secret_key        ai.yml                       hostvars['cache-vm'].ansible_host
+                               ollama_base_url
+          │                        │                              │
+          └────────────────────────┴──────────────────────────────┘
+                                   │
+                        roles/app/templates/app.env.j2
+                        → /opt/assessment/<service>.env  (mode 0600)
+                                   │
+                        systemd EnvironmentFile=
+                        → 프로세스 환경변수로 주입
 ```
 
-### 우선순위 (pydantic-settings)
-1. OS 환경변수 (docker-compose가 컨테이너에 주입한 값 / 호스트 셸 export)
-2. `.env` 파일 (cwd 기준 — 컨테이너 안에서는 `/app/.env`)
-3. config.py default
+변수 출처 3종:
+- **Ansible Vault** (`vault.yml`): password 류 secret — `ansible-vault encrypt` 후 git commit
+- **group_vars** (`common.yml` / `zdm.yml` / `ai.yml`): 비밀이 아닌 설정값 — 평문 commit
+- **hostvars**: `gen-inventory.sh` 실행 후 inventory.yml에 기록된 VM 사설 IP
 
-docker-compose `environment:` 블록은 `env_file:`보다 후순위로 적용되어 마지막 덮어쓰기가 된다 — 즉 컨테이너 안에서는 `environment:`가 항상 우선.
+---
 
-### 컨테이너 안의 `/app/.env` (DEV 한정)
+## 컴포넌트별 주입 변수
 
-`docker-compose.yml`의 `volumes: ./:/app` 코드 마운트로 호스트 `.env`가 컨테이너 안에 그대로 노출된다. 결과:
+> **범례**: ✓ 주입 / — 불필요 / ⚠ 미주입(수정 필요) / ❌ 키 오류(수정 필요)
 
-- pydantic-settings의 `env_file=".env"` 설정이 이 파일도 read → 환경변수가 우선이라 동작에 영향 없음 (redundant read).
-- 컨테이너 안에 secret이 노출 — DEV는 OK, 프로덕션은 위험.
+| 환경변수 | api-vm | consumer-vm | ai-vm | Ansible 출처 |
+|---|:---:|:---:|:---:|---|
+| `APP_ENV` | ⚠ | ⚠ | ⚠ | `app_env` 고정값 `production` 추가 필요 |
+| `POSTGRES_HOST` | ✓ | ✓ | ✓ | `hostvars['db-vm'].ansible_host` |
+| `POSTGRES_PORT` | ✓ | ✓ | ✓ | 고정값 `5432` |
+| `POSTGRES_DB` | ✓ | ✓ | ✓ | `vault_db_name` |
+| `POSTGRES_USER` | ✓ | ✓ | ✓ | `vault_db_user` |
+| `POSTGRES_PASSWORD` | ✓ | ✓ | ✓ | `vault_db_password` (**Vault**) |
+| `RABBITMQ_HOST` | ✓ | ✓ | ✓ | `hostvars['mq-vm'].ansible_host` |
+| `RABBITMQ_PORT` | ✓ | ✓ | ✓ | 고정값 `5672` |
+| `RABBITMQ_VHOST` | ✓ | ✓ | ✓ | `vault_mq_vhost` |
+| `RABBITMQ_USER` | ✓ | ✓ | ✓ | `vault_mq_user` |
+| `RABBITMQ_PASSWORD` | ✓ | ✓ | ✓ | `vault_mq_password` (**Vault**) |
+| `RABBITMQ_EXCHANGE` | ⚠ | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 고정값 추가 필요 |
+| `RABBITMQ_ROUTING_KEY_INVENTORY` | — | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
+| `RABBITMQ_ROUTING_KEY_METRICS` | — | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
+| `RABBITMQ_ROUTING_KEY_ERROR` | — | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
+| `RABBITMQ_TASK_EXCHANGE` | — | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
+| `RABBITMQ_TASK_RESULT_KEY` | — | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
+| `DIAGNOSTIC_ROUTING_KEY` | ⚠ | — | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
+| `REDIS_HOST` | ✓ | ✓ | ✓ | `hostvars['cache-vm'].ansible_host` |
+| `REDIS_PORT` | ✓ | ✓ | ✓ | 고정값 `6379` |
+| `SECRET_KEY` | ✓ | ✓ | ✓ | `vault_app_secret_key` (**Vault**) |
+| `ZDM_DEFAULT_IP` | ✓ | ✓ | ✓ | `zdm_default_ip` (`zdm.yml`) |
+| `ZDM_DEFAULT_USER` | ✓ | ✓ | ✓ | `zdm_default_user` (`zdm.yml`) |
+| `ZDM_PACKAGE_PATH` | ⚠ | — | — | `zdm.yml` 추가 필요 |
+| `ZDM_PACKAGE_SCRIPT` | ⚠ | — | — | `zdm.yml` 추가 필요 |
+| `LOG_FORMAT` | ⚠ | ⚠ | ⚠ | `group_vars/all/common.yml` 추가 권장 (`json`) |
+| `OLLAMA_BASE_URL` | — | — | ❌ | `ai.yml` → `ollama_base_url` 키로 수정 필요 |
 
-프로덕션 정책: `docker-compose.yml`의 `volumes: ./:/app` 제거. 이미 `.dockerignore`에 `.env`가 있어 `Dockerfile`의 `COPY . .` 단계에서는 제외되므로, 코드 마운트만 제거하면 컨테이너 안에 `.env`가 사라진다.
+> **Vault 항목** — `engine/ansible/group_vars/all/vault.yml`에 암호화 저장.
+> 평문 예시: `group_vars/all/vault.yml.example`.
 
-## 컴포넌트별 read 매트릭스
+---
 
-본 repo의 4 컴포넌트(web·consumer·diagnostic-worker·diagnostic-scheduler)는 각자 다른 키 집합을 read. multi-node 분리 배포 시 어느 노드에 어느 키 inject할지 reference. 코드 측 단일 진실: 컴포넌트별 sub-module(`web/settings.py`·`consumer/settings.py`·`diagnostic/settings.py`)에서 자기 Settings 인스턴스화 (Composition Root, CLAUDE.md #F4).
+## Ansible 변수 파일별 역할
 
-| 키 그룹 | web | consumer | diagnostic-worker | diagnostic-scheduler |
-|--------|:---:|:--------:|:-----------------:|:--------------------:|
-| `APP_ENV`·`LOG_FORMAT` | 의무 | 의무 | 의무 | 의무 |
-| `POSTGRES_*` | 의무 | 의무 | 의무 | 의무 |
-| `REDIS_*` | 의무 | 의무 | 의무 | 의무 |
-| `RABBITMQ_*` (broker 접속) | 의무 (진단 publish) | 의무 (consume) | 의무 (consume) | 의무 (publish) |
-| `RABBITMQ_ROUTING_KEY_*`·`RABBITMQ_EXCHANGE` | 의무 | 의무 | 의무 | 의무 |
-| `WORKER_*` (worker.result·task.install) | 의무 (task.install publish) | 의무 (worker.result consume) | 선택 | 선택 |
-| `WEB_PORT`·`INSTALL_BUNDLE_URL`·`INSTALL_TIMEOUT_SEC` | 의무 | 사용 안 함 | 사용 안 함 | 사용 안 함 |
-| `LLM_*`·`OLLAMA_*` | 사용 안 함 | 사용 안 함 | 의무 | 사용 안 함 |
-| `DIAGNOSTIC_QUEUE_*`·`DIAGNOSTIC_ROUTING_KEY` | 의무 (publish) | 사용 안 함 | 의무 (consume) | 의무 (publish) |
-| `DIAGNOSTIC_SCHEDULE_CRON`·`DIAGNOSTIC_RETENTION_DAYS`·`DIAGNOSTIC_ACTIVE_SERVER_WINDOW_HOURS` | 사용 안 함 | 사용 안 함 | 사용 안 함 | 의무 |
-| `WORKER_JOB_TIMEOUT_SECONDS` | 사용 안 함 | 사용 안 함 | 의무 | 사용 안 함 |
-| `SQLALCHEMY_ECHO` | 의무 | 의무 | 의무 | 의무 |
+| 파일 | 내용 | 변경 방법 |
+|---|---|---|
+| `group_vars/all/vault.yml` | DB·MQ password, SECRET_KEY | `ansible-vault edit group_vars/all/vault.yml` |
+| `group_vars/all/vault.yml.example` | 위의 평문 템플릿 | 구조 변경 시 함께 수정 후 commit |
+| `group_vars/all/zdm.yml` | ZDM IP·계정·패키지 경로·routing key 군 | 평문 편집 후 commit |
+| `group_vars/all/ai.yml` | Ollama base URL | 평문 편집 후 commit |
+| `group_vars/all/common.yml` | Python 버전, app 경로, venv 경로, LOG_FORMAT | 평문 편집 후 commit |
+| `inventory.yml` (gitignore) | VM 사설 IP (`ansible_host`) | `./scripts/gen-inventory.sh` 재실행 |
 
-prod 검증(`_validate_prod_*`) 발동 위치 (multi-node 분리 시):
-- web 노드: `WebSettings` + `DiagnosticSettings` → POSTGRES·RABBITMQ password weak default 거부
-- consumer 노드: `ConsumerSettings` → POSTGRES·RABBITMQ password weak default 거부
-- diagnostic-worker·scheduler 노드: `DiagnosticSettings` → POSTGRES·RABBITMQ password weak default 거부
+---
 
-본 repo 단일 진실 코드:
-- `src/assessment_engine/config.py` — class 정의만 (인스턴스 0)
-- `src/assessment_engine/web/settings.py` — WebSettings + DiagnosticSettings
-- `src/assessment_engine/consumer/settings.py` — ConsumerSettings
-- `src/assessment_engine/diagnostic/settings.py` — DiagnosticSettings
-- `src/assessment_engine/db/session.py`·`db/redis.py` — 자체 WebSettings (모든 컴포넌트 공통 db layer)
+## 환경변수 상세
 
-## 정석 주입 패턴 (운영 복잡도 단계별)
+### APP_ENV
 
-| 단계 | 패턴 | 적합 환경 | 외부 인프라 구현 |
-|------|------|----------|---------------|
-| A. 단일 `.env` 모든 노드 동일 inject | 한 파일 전부 — 단순 | 단일 host 또는 dev | docker-compose `env_file`·systemd `EnvironmentFile=/etc/assessment-engine.env` |
-| B. 컴포넌트별 `.env` 분리 | 노드별 자기 키만 | small multi-node | systemd unit별 `EnvironmentFile=/etc/<component>.env` |
-| C. 계층화 — 공통 + 컴포넌트별 (권장) | `shared.env` (DB·MQ·Redis·LOG_FORMAT) + `<component>.env` (특화 키) | 4 node 분리 prod | Ansible `group_vars`(shared) + `host_vars`(component별). systemd `EnvironmentFile=` 여러 줄 |
-| D. 중앙 secret store | Vault·Consul·AWS Parameter Store·k8s ConfigMap·External Secrets | 다중 환경·동적 회전 | 인프라 측 자체 운영 |
+| 키 | 주입값 | 비고 |
+|---|---|---|
+| `APP_ENV` | `production` (고정) | pydantic-settings의 prod 보안 검증 활성화 조건. **미주입 시 `dev` 기본값으로 동작** |
 
-본 repo 책임 한계: 위 패턴 중 어느 채널 쓰든 pydantic Settings가 env·secrets_dir 둘 다 지원. 본 매트릭스는 reference — 실제 채널 선택·노드 분리 토폴로지는 외부 인프라 결정 (CLAUDE.md #A0).
+> api·consumer·ai 모두 필요. 각 playbook `app_env` dict에 `APP_ENV: "production"` 추가.
 
-prod-contract.md 7절 "Secret 채널" + deployment.md "단계별 흐름" 참조.
+### POSTGRES_*
 
-## 전체 키 목록 (`.env.example` 순서)
+| 키 | 주입값 출처 | 비고 |
+|---|---|---|
+| `POSTGRES_HOST` | inventory `hostvars['db-vm'].ansible_host` | db-vm 사설 IP 자동 주입 |
+| `POSTGRES_PORT` | `5432` (고정) | |
+| `POSTGRES_DB` | `vault_db_name` | postgres role이 동일 값으로 DB 생성 |
+| `POSTGRES_USER` | `vault_db_user` | postgres role이 동일 값으로 user 생성 |
+| `POSTGRES_PASSWORD` | `vault_db_password` | **Vault** — CHANGEME 반드시 교체 |
 
-| 키 | 기본값 | 사용처 | 설명 |
-|----|--------|--------|------|
-| `APP_ENV` | `dev` | config.py / docker-compose | 환경 마커. `dev`/`staging`/`prod`. `prod`일 때 model_validator가 약한 default 거부 |
-| `POSTGRES_HOST` | `postgres` | config.py / docker-compose | PostgreSQL 호스트 (docker-compose 서비스명) |
-| `POSTGRES_PORT` | `5432` | config.py / docker-compose | |
-| `POSTGRES_DB` | `assessment` | config.py / docker-compose | |
-| `POSTGRES_USER` | `assessment` | config.py / docker-compose | |
-| `POSTGRES_PASSWORD` | `assessment` | config.py / docker-compose | |
-| `RABBITMQ_HOST` | `rabbitmq` | config.py | 컨슈머 broker 접속 (docker-compose 서비스명). 에이전트는 본 키를 사용하지 않음 — pipeline-up.sh가 `host.lima.internal` (Lima user-mode network alias) 별도 주입 |
-| `RABBITMQ_PORT` | `5672` | config.py / docker-compose | |
-| `RABBITMQ_VHOST` | `/assessment` | config.py / docker-compose / pipeline-up.sh | 전용 vhost. 에이전트와 동일 값 사용. AMQP URL의 `/`는 `%2F`로 인코딩 (config.py `broker_url` 자동 처리) |
-| `RABBITMQ_USER` | `assessment` | config.py / docker-compose / pipeline-up.sh (dev/agent.env) | |
-| `RABBITMQ_PASSWORD` | `assessment` | config.py / docker-compose / pipeline-up.sh (dev/agent.env) | |
-| `RABBITMQ_MANAGEMENT_PORT` | `15672` | docker-compose | RabbitMQ 관리 콘솔 포트 노출 (config.py 미사용) |
-| `RABBITMQ_EXCHANGE` | `assessment` | config.py / pipeline-up.sh (dev/agent.env) | 에이전트 - consumer routing 계약. 변경 시 양쪽 동기화 |
-| `RABBITMQ_ROUTING_KEY_INVENTORY` | `server.inventory` | config.py / pipeline-up.sh (dev/agent.env) | 동일 |
-| `RABBITMQ_ROUTING_KEY_METRICS` | `server.metrics` | config.py / pipeline-up.sh (dev/agent.env) | 동일 |
-| `RABBITMQ_ROUTING_KEY_ERROR` | `server.error` | config.py / pipeline-up.sh (dev/agent.env) | 동일 |
-| `RABBITMQ_WORKER_USER` | `assessment` | pipeline-up.sh (dev/agent.env) | 원격 호스트 worker 가 사용할 AMQP user. 비어 있으면 worker 자동 비활성 (collector 만 동작) |
-| `RABBITMQ_WORKER_PASSWORD` | `assessment` | pipeline-up.sh (dev/agent.env) | RABBITMQ_WORKER_USER 의 암호. heredoc 안에서 `RABBITMQ_WORKER_PASS` 로 매핑 |
-| `WORKER_TASK_EXCHANGE` | `assessment.tasks` | config.py / pipeline-up.sh (dev/agent.env) | task.install/task.result 전용 exchange. collector exchange 와 분리 |
-| `WORKER_TASK_QUEUE_PREFIX` | `agent.tasks` | pipeline-up.sh (dev/agent.env) | 원격 호스트별 큐 prefix. full name = `<prefix>.<machine_id>` |
-| `WORKER_TASK_RESULT_KEY` | `task.result` | pipeline-up.sh (dev/agent.env) | 원격 호스트 -> 엔진 결과 보고 routing key |
-| `WORKER_DOWNLOAD_ALLOWED_HOSTS` | `host.lima.internal` | pipeline-up.sh (dev/agent.env) | task.install download.url 의 host 화이트리스트 (case-insensitive 정확 매치) |
-| `REDIS_HOST` | `redis` | config.py | (docker-compose 서비스명) |
-| `REDIS_PORT` | `6379` | config.py | |
-| `REDIS_MAXMEMORY` | `256mb` | docker-compose (redis command) | Redis maxmemory cap. prod 에서 운영자가 튜닝 가능 |
-| `REDIS_MAXMEMORY_POLICY` | `volatile-lru` | docker-compose (redis command) | maxmemory 도달 시 eviction policy. TTL 키 우선 evict — 본 프로젝트는 idempotent/online TTL 키 만료 가능 가정 |
-| `WEB_PORT` | `8000` | config.py / docker-compose | Web UI 접속 포트. 충돌 시 변경 |
-| `INSTALL_BUNDLE_URL` | `http://host.lima.internal:8000/zconverter.tar.gz` | config.py / .env | task.install download.url 에 박혀 발행. 분산 환경은 엔진 VM IP/hostname 으로 .env 수정 의무 (agent worker 가 본 URL 로 install bundle fetch). |
-| `INSTALL_TIMEOUT_SEC` | `600` | config.py | install.sh wall-clock timeout. 원격 host worker 가 SIGTERM/SIGKILL |
-| `SQLALCHEMY_ECHO` | `false` | config.py | SQLAlchemy 엔진 SQL 로깅. dev 디버깅 시 true (운영 환경은 false 유지 — 로그 폭증·secret 노출 위험) |
-| `LOG_FORMAT` | `text` | config.py / 각 entry `setup_logging()` | 로그 출력 format. `text`(dev colorized·grep) 또는 `json`(외부 log aggregator indexing). prod은 `json` 권장 |
-| `PGADMIN_PORT` | `5050` | docker-compose dev override | pgAdmin GUI 포트 (dev 전용) |
-| `LLM_PROVIDER` | `mock` | config.py / docker-compose | 진단 narrative 합성 client (ADR 0004 + 0010). 현재 `mock`만 활성 (결정론 텍스트 합성), `ollama` 분기는 stub. 외부 LLM 도입 결정 시 활성 |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | config.py | LLM_PROVIDER=ollama 시 사용 |
-| `OLLAMA_MODEL` | `llama3.1:8b` | config.py | ollama 모델명 |
-| `LLM_TIMEOUT_SECONDS` | `60` | config.py | LLM 호출 cap |
-| `LLM_MOCK_LATENCY_SECONDS` | `2.0` | config.py | mock client 응답 sleep (UI progress 단계 표시 확인용) |
-| `DIAGNOSTIC_ROUTING_KEY` | `diagnostic.request` | config.py | engine 내부 routing key (web·worker·scheduler 공통) |
-| `DIAGNOSTIC_QUEUE_TTL_MS` | `86400000` | config.py | 큐 메시지 TTL 24h |
-| `DIAGNOSTIC_QUEUE_MAX_LEN` | `100000` | config.py | 큐 max length |
-| `DIAGNOSTIC_RETENTION_DAYS` | `90` | config.py | diagnostic_jobs 보존 일수 — 스케줄러가 발화 시 함께 DELETE |
-| `DIAGNOSTIC_SCHEDULE_CRON` | `0 3 * * *` | config.py | 스케줄러 cron (KST 03시 매일) |
-| `DIAGNOSTIC_ACTIVE_SERVER_WINDOW_HOURS` | `24` | config.py | 활성 서버 정의 — last_seen_at 윈도우 |
-| `WORKER_JOB_TIMEOUT_SECONDS` | `300` | config.py | 워커 진단 1건 전체 cap (클라이언트 polling timeout과 정렬) |
+### RABBITMQ_*
+
+| 키 | 주입값 출처 | 비고 |
+|---|---|---|
+| `RABBITMQ_HOST` | inventory `hostvars['mq-vm'].ansible_host` | mq-vm 사설 IP 자동 주입 |
+| `RABBITMQ_PORT` | `5672` (고정) | |
+| `RABBITMQ_VHOST` | `vault_mq_vhost` | rabbitmq role이 동일 값으로 vhost 생성 |
+| `RABBITMQ_USER` | `vault_mq_user` | rabbitmq role이 동일 값으로 user 생성 |
+| `RABBITMQ_PASSWORD` | `vault_mq_password` | **Vault** — agent vault.yml과 **반드시 동일** |
+| `RABBITMQ_EXCHANGE` | `zdm.yml` → `rabbitmq_exchange` | 기본값 `assessment`. agent의 publish exchange와 일치 필수 |
+| `RABBITMQ_ROUTING_KEY_INVENTORY` | `zdm.yml` → `rabbitmq_routing_key_inventory` | 기본값 `server.inventory`. agent와 일치 필수 |
+| `RABBITMQ_ROUTING_KEY_METRICS` | `zdm.yml` → `rabbitmq_routing_key_metrics` | 기본값 `server.metrics`. agent와 일치 필수 |
+| `RABBITMQ_ROUTING_KEY_ERROR` | `zdm.yml` → `rabbitmq_routing_key_error` | 기본값 `server.error`. agent와 일치 필수 |
+| `RABBITMQ_TASK_EXCHANGE` | `zdm.yml` → `rabbitmq_task_exchange` | diagnostic task dispatch용 |
+| `RABBITMQ_TASK_RESULT_KEY` | `zdm.yml` → `rabbitmq_task_result_key` | diagnostic 결과 수신 routing key |
+| `DIAGNOSTIC_ROUTING_KEY` | `zdm.yml` → `diagnostic_routing_key` | api·ai 모두 사용 |
+
+> agent-vm도 동일 MQ broker에 접속하므로 routing key 군은 `agent/ansible/roles/agent_env/templates/agent.env.j2`와 반드시 일치해야 한다.
+
+### REDIS_*
+
+| 키 | 주입값 출처 | 비고 |
+|---|---|---|
+| `REDIS_HOST` | inventory `hostvars['cache-vm'].ansible_host` | cache-vm 사설 IP 자동 주입 |
+| `REDIS_PORT` | `6379` (고정) | |
+
+### 공통 (api · consumer · ai 전부)
+
+| 키 | 주입값 출처 | 비고 |
+|---|---|---|
+| `SECRET_KEY` | `vault_app_secret_key` | **Vault** — `openssl rand -base64 32` 권장 |
+| `ZDM_DEFAULT_IP` | `zdm_default_ip` (`zdm.yml`) | ZDM 기본 접속 IP |
+| `ZDM_DEFAULT_USER` | `zdm_default_user` (`zdm.yml`) | ZDM 기본 계정 |
+| `LOG_FORMAT` | `common.yml` → `log_format` | `json` (prod 권장) / `text` (기본값) |
+
+### api-vm 전용 (ZDM_PACKAGE_*)
+
+| 키 | 주입값 출처 | 비고 |
+|---|---|---|
+| `ZDM_PACKAGE_PATH` | `zdm_package_path` (`zdm.yml`) | bastion에 준비된 ZDM 설치 패키지 경로 |
+| `ZDM_PACKAGE_SCRIPT` | `zdm_package_script` (`zdm.yml`) | ZDM 설치 스크립트 파일명 |
+
+### ai-vm 전용 (OLLAMA_*)
+
+| 키 | 주입값 출처 | 기본값 | 비고 |
+|---|---|---|---|
+| `OLLAMA_BASE_URL` | `ollama_base_url` (`ai.yml`) | `http://127.0.0.1:11434` | ai-vm 내부 Ollama 전체 URL — engine 코드가 단일 URL 키 요구. **`OLLAMA_HOST`/`OLLAMA_PORT` 분리 주입은 동작하지 않음** |
+
+> `app.env.j2`의 `{% if ollama_base_url is defined %}` 블록으로 조건 렌더링 — api·consumer vm에는 미주입.
+
+---
+
+## 환경변수 값 변경 절차
+
+### secret 변경 (DB·MQ password, SECRET_KEY)
+
+```bash
+cd engine/ansible
+ansible-vault edit group_vars/all/vault.yml
+# CHANGEME → 실제 값으로 수정 후 저장
+
+# 반영: 해당 컴포넌트 playbook 재실행
+ansible-playbook playbook-api.yml       # SECRET_KEY 변경 시
+ansible-playbook playbook-consumer.yml  # SECRET_KEY 변경 시
+ansible-playbook playbook-ai.yml        # SECRET_KEY 변경 시
+ansible-playbook playbook-db.yml        # DB password 변경 시 (DB 재설정 포함)
+ansible-playbook playbook-mq.yml        # MQ password 변경 시 (MQ 재설정 포함)
+```
+
+### ZDM 접속 정보 변경
+
+```bash
+vi engine/ansible/group_vars/all/zdm.yml
+ansible-playbook playbook-api.yml
+ansible-playbook playbook-consumer.yml
+ansible-playbook playbook-ai.yml
+```
+
+### VM IP 변경 (Terraform 재apply 후)
+
+```bash
+./scripts/gen-inventory.sh   # inventory.yml 갱신
+ansible-playbook engine/ansible/playbook-api.yml
+# ... 각 컴포넌트 재실행
+```
+
+---
 
 ## 주의사항
 
-### 호스트명 정책
+### env 파일 위치 및 권한
 
-기본값의 호스트명(`postgres`, `rabbitmq`, `redis`)은 docker-compose 서비스명이다. docker-compose 네트워크 내부에서만 해석된다.
+| 컴포넌트 | 파일 경로 | 권한 |
+|---|---|---|
+| api-vm | `/opt/assessment/assessment-api.env` | 0600 |
+| consumer-vm | `/opt/assessment/assessment-consumer.env` | 0600 |
+| ai-vm | `/opt/assessment/assessment-diagnostic.env` | 0600 |
 
-| 실행 환경 | HOST 값 | 비고 |
-|----------|---------|------|
-| docker-compose 컨테이너 (web/consumer) | `postgres` / `rabbitmq` / `redis` | docker-compose `environment:` 블록이 강제로 오버라이드 — `.env`의 HOST 값과 무관하게 항상 서비스명으로 들어간다 |
-| 호스트 직접 실행 (IDE 디버깅 등) | `localhost` | `.env`의 HOST 값을 `localhost`로 바꿔야 컨테이너 외부에서 해당 포트로 접속 가능 |
+파일 소유자: `assessment` (systemd service 실행 user). 직접 확인:
 
-docker-compose `environment:` 오버라이드는 `web` / `consumer` 양쪽에 명시되어 있어 컨테이너 내부에서는 `.env` HOST 값을 변경해도 효과 없음. 호스트 직접 실행 시에만 의미 있다.
+```bash
+sudo cat /opt/assessment/assessment-api.env
+```
 
-### Lima 에이전트 secret 채널 (분리됨)
+### MQ 자격증명 agent 동기화
 
-pipeline-up.sh는 엔진의 `.env`를 에이전트에 전달하지 않는다. 별도 파일 `dev/agent.env`에서만 read (`set -a; source dev/agent.env; set +a`로 host env export):
+`vault_mq_user` / `vault_mq_password` / `vault_mq_vhost` 는 engine과 agent가 동일 broker를 사용하므로 반드시 일치해야 한다.
 
-- `RABBITMQ_USER`, `RABBITMQ_PASSWORD`, `RABBITMQ_EXCHANGE`, `RABBITMQ_ROUTING_KEY_INVENTORY`, `RABBITMQ_ROUTING_KEY_METRICS`, `RABBITMQ_ROUTING_KEY_ERROR`
-- `RABBITMQ_WORKER_USER`, `RABBITMQ_WORKER_PASSWORD`, `WORKER_TASK_EXCHANGE`, `WORKER_TASK_QUEUE_PREFIX`, `WORKER_TASK_RESULT_KEY`, `WORKER_DOWNLOAD_ALLOWED_HOSTS`
+| 파일 | 변수 |
+|---|---|
+| `engine/ansible/group_vars/all/vault.yml` | `vault_mq_user`, `vault_mq_password`, `vault_mq_vhost` |
+| `agent/ansible/group_vars/all/vault.yml` | 동일 키, 동일 값 |
 
-`dev/agent.env`가 없으면 pipeline-up.sh가 즉시 에러. `cp dev/agent.env.example dev/agent.env` 후 운영 값으로 수정.
+### MQ routing key agent 동기화
 
-이 값들이 limactl shell heredoc 치환으로 Lima VM 안 `/etc/assessment-agent.env`에 옮겨지고, `RABBITMQ_HOST`는 pipeline-up.sh가 `host.lima.internal` (Lima user-mode network alias) 상수로 별도 주입한다.
+agent가 publish하는 routing key와 engine consumer/ai가 subscribe하는 routing key가 반드시 일치해야 한다.
 
-`dev/agent.env` 변경 후 VM에 반영하려면 `./scripts/pipeline-up.sh` 재실행 (VM은 Running 유지, `/etc/assessment-agent.env`만 재생성 + agent restart).
+| 변수 | engine (`zdm.yml`) | agent (`agent.env.j2`) |
+|---|---|---|
+| `RABBITMQ_EXCHANGE` | `rabbitmq_exchange` | `RABBITMQ_EXCHANGE=assessment` (하드코딩) |
+| `RABBITMQ_ROUTING_KEY_INVENTORY` | `rabbitmq_routing_key_inventory` | `RABBITMQ_ROUTING_KEY_INVENTORY=server.inventory` |
+| `RABBITMQ_ROUTING_KEY_METRICS` | `rabbitmq_routing_key_metrics` | `RABBITMQ_ROUTING_KEY_METRICS=server.metrics` |
+| `RABBITMQ_ROUTING_KEY_ERROR` | `rabbitmq_routing_key_error` | `RABBITMQ_ROUTING_KEY_ERROR=server.error` |
 
-분리 근거: `docs/operations/prod-contract.md` "에이전트 secret 채널 분리" 절.
+### alembic 마이그레이션 환경변수
 
-### config.py가 환경변수로 받지 않는 키
-
-다음은 `.env.example`에 없고 `src/assessment_engine/config.py`의 default로만 정의된다 — 운영 중 변경 빈도가 낮아 의도적으로 환경변수화하지 않음:
-
-- `redis_ttl_idempotent` (24h), `redis_ttl_online` (90s), `redis_ttl_token` (1h)
-- `redis_ttl_last_agent_start` (24h), `redis_ttl_agent_restarts` (1h 슬라이딩 윈도우)
-- `redis_key_*` 패턴 (cache:* / idempotent / online / token / last_agent_start / agent_restarts)
-- `redis_channel_metrics`
-- `agent_restart_alert_threshold` (3 — 1h 내 재시작 N회 도달 시 warning)
-
-운영 환경에서 조정 필요 시 `BaseSettings` 필드라 환경변수로도 주입 가능하며, 이 경우 `.env`에 키 추가 + `docs/operations/env.md` 갱신. 현재 시점에는 default 값이 적절. `docs/tradeoffs.md` T2 개선 방향 참조.
+`app_run_alembic: true`인 api-vm에서만 alembic이 실행된다. 이때 `playbook-api.yml`의 `app_env` dict가 alembic 프로세스에 직접 주입된다 (systemd env 파일과 별도 경로).

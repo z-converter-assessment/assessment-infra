@@ -54,7 +54,7 @@
 
 > TimescaleDB는 `postgresql-16 >= 16.14` 요구 → PGDG repo 필수.
 
-## worker-vm
+## consumer-vm
 
 | 항목 | 값 |
 |---|---|
@@ -66,7 +66,7 @@
 | spec | 최저 (1 vCPU / 1 GB) |
 | 데이터 | 없음 |
 
-> api-vm과 동일 wheel — systemd unit·EnvironmentFile만 다름 (`app_service_name: assessment-worker`).
+> api-vm과 동일 wheel — systemd unit·EnvironmentFile만 다름 (`app_service_name: assessment-consumer`).
 
 ## ai-vm
 
@@ -101,7 +101,7 @@
 | 항목 | 값 |
 |---|---|
 | 책임 | Ansible/Terraform 실행 호스트, ProxyJump SSH gateway |
-| 컴포넌트 | PowerShell + Terraform + Ansible |
+| 컴포넌트 | Terraform + Ansible (Debian 13 위에서 실행) |
 | 외부 노출 | 22/tcp (FIP — 사내망에서 접근) |
 | 의존 | 없음 (모든 VM 관리) |
 | 상태 | 작업 디렉토리, terraform.tfstate, Ansible Vault |

@@ -271,7 +271,7 @@ sudo -u assessment bash -c '
 ```
 
 **해결**  
-`app.env.j2`와 `playbook-api.yml` / `playbook-worker.yml`의 `app_env` dict를 pydantic-settings 필드명으로 전면 수정.
+`app.env.j2`와 `playbook-api.yml` / `playbook-consumer.yml`의 `app_env` dict를 pydantic-settings 필드명으로 전면 수정.
 
 | 변경 전 (틀림) | 변경 후 (맞음) |
 |---|---|
@@ -328,13 +328,13 @@ sudo systemctl daemon-reload && sudo systemctl restart assessment-api
 
 ---
 
-## 11. Worker `assessment-worker` 바이너리 없음
+## 11. Consumer `assessment-consumer` 바이너리 없음
 
 **증상**  
-`playbook-worker.yml`의 `app_exec_start: ".../bin/assessment-worker"` 설정으로 서비스 기동 실패.
+`playbook-consumer.yml`의 `app_exec_start: ".../bin/assessment-consumer"` 설정으로 서비스 기동 실패.
 
 **원인**  
-wheel에 `assessment-worker` console script entry point가 정의돼 있지 않아 `venv/bin/`에 해당 바이너리가 생성되지 않는다.  
+wheel에 `assessment-consumer` console script entry point가 정의돼 있지 않아 `venv/bin/`에 해당 바이너리가 생성되지 않는다.  
 대신 consumer 패키지에 `__main__.py`가 있어 모듈 실행 방식을 지원한다.
 
 **확인 방법**
@@ -345,10 +345,10 @@ ls /opt/assessment/venv/lib/python3.12/site-packages/assessment_engine/consumer/
 ```
 
 **해결**  
-`playbook-worker.yml` 수정:
+`playbook-consumer.yml` 수정:
 ```yaml
 # 변경 전
-app_exec_start: "{{ app_venv }}/bin/assessment-worker"
+app_exec_start: "{{ app_venv }}/bin/assessment-consumer"
 
 # 변경 후
 app_exec_start: "{{ app_venv }}/bin/python -m assessment_engine.consumer"
@@ -406,6 +406,314 @@ sudo rabbitmqctl set_permissions -p assessment assessment ".*" ".*" ".*"
 
 ---
 
+## 13. Terraform — flavor `c1_m2_r40` 없음
+
+**증상**
+```
+Error: Unable to find flavor with name c1_m2_r40
+  with openstack_compute_instance_v2.mq_vm
+  with openstack_compute_instance_v2.db_vm
+```
+
+**원인**  
+`terraform.tfvars`의 `flavor_mq`, `flavor_db`가 `c1_m2_r40`으로 설정돼 있으나 해당 환경에 존재하지 않는 flavor였다.
+
+**확인 방법**
+```bash
+OS_CLOUD=openstack openstack flavor list
+```
+
+**해결**  
+`terraform.tfvars`에서 존재하는 가장 가까운 flavor로 교체:
+
+```hcl
+flavor_mq = "c2_m2_r40"  # c1_m2_r40 미제공 → 2 vCPU / 2 GB 폴백
+flavor_db = "c2_m4_r30"  # c1_m2_r40 미제공 → 2 vCPU / 4 GB 폴백
+```
+
+> `terraform.tfvars.example` 주석에 폴백 flavor가 이미 명시돼 있으므로, 신규 환경 세팅 시 먼저 `openstack flavor list`로 가용 목록 확인 후 매핑할 것.
+
+---
+
+## 14. Ansible SSH 키 권한 오류
+
+**증상**
+```
+WARNING: UNPROTECTED PRIVATE KEY FILE!
+Permissions 0664 for '/home/debian/.ssh/engine-key.pem' are too open.
+Load key "/home/debian/.ssh/engine-key.pem": bad permissions
+Permission denied (publickey).
+```
+
+**원인**  
+`engine-key.pem` 파일 권한이 `0664`로 설정돼 있어 SSH 클라이언트가 키 사용을 거부한다.
+
+**해결**
+```bash
+chmod 0400 ~/.ssh/engine-key.pem
+```
+
+---
+
+## 15. postgres role — `apt_key` / `apt_repository` Debian 13에서 제거됨
+
+**증상**
+```
+Failed to find required executable "apt-key" in paths: /usr/local/sbin:/usr/local/bin:...
+```
+
+**원인**  
+Debian 13(Trixie)에서 `apt-key` 명령이 완전 제거됐다. Ansible의 `apt_key` 모듈과 `apt_repository` 모듈은 내부적으로 `apt-key`를 사용하므로 동작하지 않는다.
+
+**해결**  
+`/etc/apt/keyrings/` + `signed-by` 방식으로 전환:
+
+```yaml
+- name: create /etc/apt/keyrings directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: download PGDG apt signing key
+  get_url:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dest: /etc/apt/keyrings/pgdg.asc
+    mode: "0644"
+
+- name: add PGDG apt repository
+  copy:
+    content: "deb [signed-by=/etc/apt/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main\n"
+    dest: /etc/apt/sources.list.d/pgdg.list
+    mode: "0644"
+  register: pgdg_repo
+
+- name: update apt cache
+  apt:
+    update_cache: true
+  when: pgdg_repo.changed or tsdb_repo.changed
+```
+
+> Debian 13 환경에서 외부 apt repo를 추가할 때는 `apt_key` / `apt_repository` 모듈 대신 이 패턴을 표준으로 사용할 것.
+
+---
+
+## 16. postgres role — pgvector extension 설치 및 권한
+
+**증상 1 — 패키지 없음**
+```
+extension "vector" is not available
+Could not open extension control file ".../extension/vector.control": No such file or directory.
+```
+
+**증상 2 — 권한 부족**
+```
+asyncpg.exceptions.InsufficientPrivilegeError: permission denied to create extension "vector"
+HINT: Must be superuser to create this extension.
+```
+
+**원인**  
+- `postgresql-16-pgvector` 패키지가 설치되지 않아 extension 파일 자체가 없었다.  
+- Alembic이 `assessment` 유저 권한으로 `CREATE EXTENSION vector`를 실행하는데, extension 생성은 superuser만 가능하다.
+
+**해결**  
+postgres role에서 superuser(`postgres`)로 extension을 미리 생성:
+
+```yaml
+- name: install postgresql, timescaledb, pgvector
+  apt:
+    name:
+      - "postgresql-{{ pg_version }}"
+      - "timescaledb-2-postgresql-{{ pg_version }}"
+      - "postgresql-{{ pg_version }}-pgvector"
+    state: present
+
+- name: enable pgvector extension (superuser required)
+  become_user: postgres
+  community.postgresql.postgresql_ext:
+    name: vector
+    db: "{{ vault_db_name }}"
+    state: present
+```
+
+---
+
+## 17. app role — `python3-packaging` 없음
+
+**증상**
+```
+Failed to import the required Python library (packaging) on api-vm's Python /usr/bin/python3.13.
+No module named 'packaging'
+```
+
+**원인**  
+Ansible의 `pip` 모듈이 내부적으로 `packaging` 라이브러리를 사용하는데, Debian 13 기본 Python 환경에 설치돼 있지 않다.
+
+**해결**  
+app role의 패키지 설치 task에 추가:
+
+```yaml
+- name: install python3, venv, acl, packaging
+  apt:
+    name:
+      - python3
+      - python3-venv
+      - python3-packaging
+      - acl
+    state: present
+```
+
+---
+
+## 18. `engine_subnet_cidr` CIDR 범위 불일치
+
+**증상**
+```
+asyncpg.exceptions.InvalidAuthorizationSpecificationError:
+  no pg_hba.conf entry for host "10.0.10.23", user "assessment", database "assessment", no encryption
+```
+
+**원인**  
+`common.yml`의 `engine_subnet_cidr`가 `10.0.10.64/26`으로 설정돼 있었다.  
+이 범위는 `10.0.10.64 ~ 10.0.10.127`만 커버하는데, 실제 api-vm IP `10.0.10.23`은 이 범위 밖이었다.
+
+**확인 방법**
+```bash
+# 각 VM의 실제 IP 확인
+terraform -chdir=engine/terraform output
+```
+
+**해결**  
+engine subnet 전체(`10.0.10.0/24`)로 수정:
+
+```yaml
+# group_vars/all/common.yml
+engine_subnet_cidr: "10.0.10.0/24"
+```
+
+수정 후 `playbook-db.yml` 재실행 → pg_hba.conf 자동 갱신.
+
+---
+
+## 19. ollama role — systemd override 디렉토리 없음
+
+**증상**
+```
+Destination directory /etc/systemd/system/ollama.service.d does not exist
+```
+
+**원인**  
+ollama 공식 install script가 서비스를 설치하지만 `ollama.service.d/` drop-in 디렉토리는 생성하지 않는다. Ansible `copy` 모듈은 상위 디렉토리를 자동 생성하지 않는다.
+
+**해결**  
+override 파일 작성 task 앞에 디렉토리 생성 task 추가:
+
+```yaml
+- name: create ollama systemd override directory
+  file:
+    path: /etc/systemd/system/ollama.service.d
+    state: directory
+    mode: "0755"
+
+- name: write ollama systemd override (host·port 변경)
+  copy:
+    dest: /etc/systemd/system/ollama.service.d/override.conf
+    ...
+```
+
+---
+
+## 20. ollama 모델 저장 경로 — `~/.ollama` 아님
+
+**증상**  
+bastion에서 `ollama pull` 후 `tar czf ... -C ~ .ollama` 실행 시:
+```
+tar: .ollama: Cannot stat: No such file or directory
+```
+
+**원인**  
+ollama install script가 생성하는 `ollama` systemd 서비스 유저의 home이 `/usr/share/ollama`이다.  
+모델은 `~/.ollama`가 아닌 `/usr/share/ollama/.ollama/`에 저장된다.
+
+**확인 방법**
+```bash
+sudo find /usr/share/ollama -maxdepth 3
+```
+
+**해결**
+```bash
+sudo tar czf engine/ansible/files/ollama/ollama-models.tar.gz \
+  -C /usr/share/ollama .ollama
+```
+
+---
+
+## 21. agent terraform — 이미지 이름 불일치
+
+**증상**
+```
+Error: Error retrieving image with name "ubuntu22.04_x64_uefi_3.5G": No image found
+Error: Error retrieving image with name "almalinux9_x64_uefi_10G": No image found
+...
+```
+
+**원인**  
+`variables.tf` default의 이미지 이름이 실제 OpenStack 환경의 이미지 이름과 달랐다.
+
+**확인 방법**
+```bash
+OS_CLOUD=openstack openstack image list --status active -f value -c Name
+```
+
+**해결**  
+`terraform.tfvars`에서 `agent_os_map` 전체를 override해 실제 이미지명으로 교체:
+
+| OS 키 | 기본값 (틀림) | 실제 이미지명 |
+|---|---|---|
+| ubuntu2204 | `ubuntu22.04_x64_uefi_3.5G` | `ubuntu22.04_x64_uefi_2.2G` |
+| alma9 | `almalinux9_x64_uefi_10G` | `alma9_x64_uefi_10G` |
+| centos9 | `centos-stream9_x64_uefi_10G` | `centos9stream_x64_uefi_10G` |
+| windows2022 | `windows-server-2022_x64_uefi_40G` | `win2022_x64_uefi_40G_template` |
+
+> 신규 환경 세팅 시 반드시 `openstack image list`로 실제 이름 확인 후 `terraform.tfvars`에 `agent_os_map` 전체를 명시할 것.
+
+---
+
+## 22. agent terraform — `No valid host was found` (하이퍼바이저 용량 부족)
+
+**증상**
+```
+Error: Error waiting for instance to become ready: unexpected state 'ERROR', wanted target 'ACTIVE'
+openstack server show <id> → fault.message: "No valid host was found."
+```
+
+**원인**  
+프로젝트 쿼터(instances: 1000, cores: 2000)는 충분하지만, 실제 OpenStack 컴퓨트 노드의 물리 자원(RAM/CPU)이 부족했다.  
+agent VM 30대를 동시에 생성 시도했을 때 하이퍼바이저 스케줄러가 배치 가능한 물리 호스트를 찾지 못했다.
+
+**프로젝트 쿼터 vs 물리 용량 차이**  
+- 쿼터: OpenStack DB에 저장된 소프트 제한 (관리자 설정)  
+- 물리 용량: 실제 컴퓨트 노드의 RAM/CPU 합계 (하드 제한)  
+둘은 독립적으로 관리되며, 쿼터가 여유 있어도 물리 노드가 꽉 차면 `No valid host was found` 발생.
+
+**현 환경 제약**  
+엔진 6대 + 에이전트 4대 = **총 10대**가 현재 클러스터의 수용 한계.
+
+**해결**  
+`terraform.tfvars`의 `agent_os_map` count를 4 → 1로 줄여 재적용:
+
+```hcl
+agent_os_map = {
+  debian13 = { ..., count = 1 }
+  debian12 = { ..., count = 1 }
+  ...
+}
+```
+
+근본 해결은 OpenStack 관리자에게 컴퓨트 노드 증설 요청.
+
+---
+
 ## 요약 테이블
 
 | # | 문제 | 원인 한 줄 요약 | 해결책 |
@@ -420,5 +728,15 @@ sudo rabbitmqctl set_permissions -p assessment assessment ".*" ".*" ".*"
 | 8 | pyproject.toml permission denied | alembic cwd가 `/root` → assessment 유저 읽기 불가 | `chdir: "{{ app_dir }}"` 명시 |
 | 9 | DNS `postgres` 해석 실패 | env 파일 키가 `DATABASE_URL`로 틀림, pydantic이 기본값 사용 | `POSTGRES_*` / `RABBITMQ_*` 개별 키로 교체 |
 | 10 | uvicorn ASGI import 실패 | 엔트리포인트가 `assessment_engine.main` (존재 안 함) | `assessment_engine.web.main:app`으로 수정 |
-| 11 | worker 바이너리 없음 | wheel에 console script 미등록 | `python -m assessment_engine.consumer`로 변경 |
+| 11 | consumer 바이너리 없음 | wheel에 console script 미등록 | `python -m assessment_engine.consumer`로 변경 |
 | 12 | AMQP Connection.Close | Ansible when 조건 버그로 vhost 권한 설정 스킵 | 권한 task의 when 조건 제거, 무조건 실행 |
+| 13 | flavor `c1_m2_r40` 없음 | 환경에 존재하지 않는 flavor 이름 | `openstack flavor list` 확인 후 `c2_m2_r40` / `c2_m4_r30` 폴백 |
+| 14 | SSH 키 권한 0664 | pem 파일 권한이 너무 열려 있음 | `chmod 0400 ~/.ssh/engine-key.pem` |
+| 15 | `apt_key` 없음 (Debian 13) | Debian 13에서 `apt-key` 명령 제거 | keyrings/ + signed-by 방식으로 전환 |
+| 16 | pgvector 설치/권한 오류 | 패키지 미설치 + `assessment` 유저는 extension 생성 불가 | `postgresql-16-pgvector` 설치 + postgres 유저로 `postgresql_ext` 실행 |
+| 17 | `python3-packaging` 없음 | Ansible pip 모듈 의존성 미충족 | `python3-packaging` apt 설치 추가 |
+| 18 | pg_hba.conf CIDR 불일치 | `10.0.10.64/26`이 실제 VM IP 범위 밖 | `engine_subnet_cidr: "10.0.10.0/24"` 수정 |
+| 19 | ollama override 디렉토리 없음 | install script가 drop-in 디렉토리 미생성 | `file` task로 디렉토리 사전 생성 |
+| 20 | ollama 모델 경로 오류 | 모델이 `~/.ollama`가 아닌 `/usr/share/ollama/.ollama`에 저장 | tarball 경로를 `/usr/share/ollama`로 수정 |
+| 21 | agent 이미지 이름 불일치 | variables.tf 기본값과 실제 환경 이미지명 차이 | `openstack image list` 확인 후 `agent_os_map` override |
+| 22 | `No valid host was found` | 프로젝트 쿼터는 여유 있지만 하이퍼바이저 물리 용량 초과 | count 줄이거나 컴퓨트 노드 증설 요청 |
