@@ -38,7 +38,8 @@
 | `docs/architecture/runtime.md` | 실행 시 어떻게 흐르는가? (메시지·env·배포 흐름) |
 | `docs/architecture/components.md` | 각 VM의 책임·spec·인터페이스는? |
 | `docs/architecture/agent-publish.md` | agent CM2 모델·collector·worker connection 분리 메커니즘 |
-| `docs/setup.md` | 초기 구축 단계별 가이드 |
+| `docs/setup.md` | 초기 구축 단계별 가이드 (첫 bastion·OpenStack 부트스트랩) |
+| `docs/operations/deploy-walkthrough.md` | 반복 배포 시나리오 (vault → engine → agent 순서) |
 | `docs/operations/env-engine.md` | engine VM 환경변수 카탈로그 |
 | `docs/operations/env-agent.md` | agent VM 환경변수 카탈로그 |
 | `docs/operations/env-audit.md` | engine·agent repo contract 대비 inject 격차 (수정 완료 시 폐기) |
