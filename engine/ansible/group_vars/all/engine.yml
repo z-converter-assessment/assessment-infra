@@ -5,3 +5,28 @@ engine_version: "0.1.1"
 # 배포 방식: Option A — 운영자가 ansible/files/wheels/ 에 wheel을 사전 복사
 # wheel 파일명 패턴 (engine_version 변수 자동 삽입)
 engine_wheel_file: "assessment_engine-{{ engine_version }}-py3-none-any.whl"
+
+# ── 운영 모드 마커 ────────────────────────────────────────────────
+# engine_app_env="production" 시 engine 코드의 fail-fast 검증 활성화
+# (_WEAK_VALUES 거부: vault_db_password/vault_mq_password 가 'assessment'/'changeme' 등이면 startup 차단).
+# vault 가 placeholder 인 상태로 production 으로 배포하면 즉시 실패함 — 강한 secret 으로 치환 후 배포.
+# 초기 검증·dev 환경에선 "staging" 또는 "dev" 로 override 가능.
+engine_app_env: "production"
+engine_log_format: "json"
+
+# ── MQ routing 계약 (agent ↔ engine 양쪽 동일 값 의무) ─────────────
+# server.* 군: agent collector → engine consumer
+engine_mq_exchange: "assessment"
+engine_mq_routing_key_inventory: "server.inventory"
+engine_mq_routing_key_metrics: "server.metrics"
+engine_mq_routing_key_error: "server.error"
+
+# task.* 군: engine api → agent worker → engine consumer (task.result)
+engine_mq_task_exchange: "assessment.tasks"
+engine_mq_task_result_key: "task.result"
+engine_mq_task_queue_prefix: "agent.tasks"
+
+# ── diagnostic 라우팅 (engine 내부 — api ↔ ai) ─────────────────────
+engine_diagnostic_routing_key: "diagnostic.request"
+engine_diagnostic_queue_ttl_ms: "86400000"
+engine_diagnostic_queue_max_len: "100000"

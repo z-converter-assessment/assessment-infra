@@ -2,12 +2,14 @@
 # 최경량 모델 — gemma2:2b (Q4, ~1.6 GB)
 ollama_model: "gemma2:2b"
 
-# Ollama 데몬 listen 주소·포트
+# Ollama 데몬 listen 주소·포트 (systemd unit Environment에서 사용)
 ollama_host: "0.0.0.0"
 ollama_port: 11434
 
-# diagnostic-worker → Ollama 연결 주소 (같은 VM이므로 localhost)
-ollama_api_host: "127.0.0.1"
+# diagnostic-worker → Ollama 접속 URL
+# engine 코드가 OLLAMA_BASE_URL 단일 키만 read (env-audit Critical #1).
+# 같은 VM이므로 loopback. 데몬이 0.0.0.0 listen이라도 클라이언트는 127.0.0.1 접속.
+ollama_base_url: "http://127.0.0.1:{{ ollama_port }}"
 
 # Ollama install script — bastion에서 사전 다운로드 후 files/에 복사
 # 폐쇄망: VM에서 https://ollama.com 직접 접근 불가하므로 사전 배포 필요

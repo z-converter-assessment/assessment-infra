@@ -6,6 +6,8 @@
     app_run_alembic: false
     app_exec_start: "{{ app_venv }}/bin/python -m assessment_engine.diagnostic"
     app_env:
+      APP_ENV: "{{ engine_app_env }}"
+      LOG_FORMAT: "{{ engine_log_format }}"
       POSTGRES_HOST: "{{ hostvars['db-vm'].ansible_host }}"
       POSTGRES_PORT: "5432"
       POSTGRES_DB: "{{ vault_db_name }}"
@@ -16,13 +18,21 @@
       RABBITMQ_VHOST: "{{ vault_mq_vhost }}"
       RABBITMQ_USER: "{{ vault_mq_user }}"
       RABBITMQ_PASSWORD: "{{ vault_mq_password }}"
+      RABBITMQ_EXCHANGE: "{{ engine_mq_exchange }}"
+      RABBITMQ_ROUTING_KEY_INVENTORY: "{{ engine_mq_routing_key_inventory }}"
+      RABBITMQ_ROUTING_KEY_METRICS: "{{ engine_mq_routing_key_metrics }}"
+      RABBITMQ_ROUTING_KEY_ERROR: "{{ engine_mq_routing_key_error }}"
+      WORKER_TASK_EXCHANGE: "{{ engine_mq_task_exchange }}"
+      WORKER_TASK_RESULT_KEY: "{{ engine_mq_task_result_key }}"
+      DIAGNOSTIC_ROUTING_KEY: "{{ engine_diagnostic_routing_key }}"
+      DIAGNOSTIC_QUEUE_TTL_MS: "{{ engine_diagnostic_queue_ttl_ms }}"
+      DIAGNOSTIC_QUEUE_MAX_LEN: "{{ engine_diagnostic_queue_max_len }}"
       REDIS_HOST: "{{ hostvars['cache-vm'].ansible_host }}"
       REDIS_PORT: "6379"
       SECRET_KEY: "{{ vault_app_secret_key }}"
       ZDM_DEFAULT_IP: "{{ zdm_default_ip }}"
       ZDM_DEFAULT_USER: "{{ zdm_default_user }}"
-      OLLAMA_HOST: "{{ ollama_api_host }}"
-      OLLAMA_PORT: "{{ ollama_port | string }}"
+      OLLAMA_BASE_URL: "{{ ollama_base_url }}"
       OLLAMA_MODEL: "{{ ollama_model }}"
   roles:
     - ollama

@@ -18,6 +18,23 @@ agent_binary_filename: assessment-agent-linux-x86_64
 # Engine MQ (host injected by gen_inventory.py)
 engine_mq_port: 5672
 
+# MQ routing 계약 — engine/ansible/group_vars/all/engine.yml 과 반드시 동일 값
+# (engine 측은 engine_mq_* 이름으로 정의됨, 본 파일은 agent 단독 ansible run이므로 별도 정의)
+mq_exchange: "assessment"
+mq_routing_key_inventory: "server.inventory"
+mq_routing_key_metrics: "server.metrics"
+mq_routing_key_error: "server.error"
+
+# task.* 군 (CM2 worker contract — agent worker 가 consume + task.result publish)
+mq_task_exchange: "assessment.tasks"
+mq_task_queue_prefix: "agent.tasks"
+mq_task_result_key: "task.result"
+
+# task.install download.url host 화이트리스트 (CSV, case-insensitive exact match).
+# 비면 worker 가 모든 download reject — env-audit Critical #2.
+# 값: ZDM 서버 host. engine/ansible/group_vars/all/zdm.yml 의 zdm_default_ip 와 동일 host 유지.
+worker_download_allowed_hosts: "192.168.3.94"
+
 # Service groups to install on this host.
 # Override per OS group in group_vars/<os_key>.yml or per host in host_vars/.
 # Available values: service_web, service_db, service_cache, service_mq,

@@ -42,7 +42,8 @@ vault.yml (암호화)           common.yml / zdm.yml          (gen-inventory.sh 
 
 | 환경변수 | api-vm | consumer-vm | ai-vm | Ansible 출처 |
 |---|:---:|:---:|:---:|---|
-| `APP_ENV` | ⚠ | ⚠ | ⚠ | `app_env` 고정값 `production` 추가 필요 |
+| `APP_ENV` | ✓ | ✓ | ✓ | `engine_app_env` (`engine.yml`, default `production`) |
+| `LOG_FORMAT` | ✓ | ✓ | ✓ | `engine_log_format` (`engine.yml`, default `json`) |
 | `POSTGRES_HOST` | ✓ | ✓ | ✓ | `hostvars['db-vm'].ansible_host` |
 | `POSTGRES_PORT` | ✓ | ✓ | ✓ | 고정값 `5432` |
 | `POSTGRES_DB` | ✓ | ✓ | ✓ | `vault_db_name` |
@@ -53,13 +54,15 @@ vault.yml (암호화)           common.yml / zdm.yml          (gen-inventory.sh 
 | `RABBITMQ_VHOST` | ✓ | ✓ | ✓ | `vault_mq_vhost` |
 | `RABBITMQ_USER` | ✓ | ✓ | ✓ | `vault_mq_user` |
 | `RABBITMQ_PASSWORD` | ✓ | ✓ | ✓ | `vault_mq_password` (**Vault**) |
-| `RABBITMQ_EXCHANGE` | ⚠ | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 고정값 추가 필요 |
-| `RABBITMQ_ROUTING_KEY_INVENTORY` | — | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
-| `RABBITMQ_ROUTING_KEY_METRICS` | — | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
-| `RABBITMQ_ROUTING_KEY_ERROR` | — | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
-| `RABBITMQ_TASK_EXCHANGE` | — | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
-| `RABBITMQ_TASK_RESULT_KEY` | — | ⚠ | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
-| `DIAGNOSTIC_ROUTING_KEY` | ⚠ | — | ⚠ | `zdm.yml` 또는 `app_env` 추가 필요 |
+| `RABBITMQ_EXCHANGE` | ✓ | ✓ | ✓ | `engine_mq_exchange` (`engine.yml`) |
+| `RABBITMQ_ROUTING_KEY_INVENTORY` | ✓ | ✓ | ✓ | `engine_mq_routing_key_inventory` (`engine.yml`) |
+| `RABBITMQ_ROUTING_KEY_METRICS` | ✓ | ✓ | ✓ | `engine_mq_routing_key_metrics` (`engine.yml`) |
+| `RABBITMQ_ROUTING_KEY_ERROR` | ✓ | ✓ | ✓ | `engine_mq_routing_key_error` (`engine.yml`) |
+| `WORKER_TASK_EXCHANGE` | ✓ | ✓ | ✓ | `engine_mq_task_exchange` (`engine.yml`) |
+| `WORKER_TASK_RESULT_KEY` | ✓ | ✓ | ✓ | `engine_mq_task_result_key` (`engine.yml`) |
+| `DIAGNOSTIC_ROUTING_KEY` | ✓ | — | ✓ | `engine_diagnostic_routing_key` (`engine.yml`) |
+| `DIAGNOSTIC_QUEUE_TTL_MS` | ✓ | — | ✓ | `engine_diagnostic_queue_ttl_ms` (`engine.yml`) |
+| `DIAGNOSTIC_QUEUE_MAX_LEN` | ✓ | — | ✓ | `engine_diagnostic_queue_max_len` (`engine.yml`) |
 | `REDIS_HOST` | ✓ | ✓ | ✓ | `hostvars['cache-vm'].ansible_host` |
 | `REDIS_PORT` | ✓ | ✓ | ✓ | 고정값 `6379` |
 | `SECRET_KEY` | ✓ | ✓ | ✓ | `vault_app_secret_key` (**Vault**) |
@@ -67,8 +70,8 @@ vault.yml (암호화)           common.yml / zdm.yml          (gen-inventory.sh 
 | `ZDM_DEFAULT_USER` | ✓ | ✓ | ✓ | `zdm_default_user` (`zdm.yml`) |
 | `ZDM_PACKAGE_PATH` | ⚠ | — | — | `zdm.yml` 추가 필요 |
 | `ZDM_PACKAGE_SCRIPT` | ⚠ | — | — | `zdm.yml` 추가 필요 |
-| `LOG_FORMAT` | ⚠ | ⚠ | ⚠ | `group_vars/all/common.yml` 추가 권장 (`json`) |
-| `OLLAMA_BASE_URL` | — | — | ❌ | `ai.yml` → `ollama_base_url` 키로 수정 필요 |
+| `OLLAMA_BASE_URL` | — | — | ✓ | `ollama_base_url` (`ai.yml`, `http://127.0.0.1:11434`) |
+| `OLLAMA_MODEL` | — | — | ✓ | `ollama_model` (`ai.yml`, `gemma2:2b`) |
 
 > **Vault 항목** — `engine/ansible/group_vars/all/vault.yml`에 암호화 저장.
 > 평문 예시: `group_vars/all/vault.yml.example`.
@@ -154,7 +157,8 @@ vault.yml (암호화)           common.yml / zdm.yml          (gen-inventory.sh 
 
 | 키 | 주입값 출처 | 기본값 | 비고 |
 |---|---|---|---|
-| `OLLAMA_BASE_URL` | `ollama_base_url` (`ai.yml`) | `http://127.0.0.1:11434` | ai-vm 내부 Ollama 전체 URL — engine 코드가 단일 URL 키 요구. **`OLLAMA_HOST`/`OLLAMA_PORT` 분리 주입은 동작하지 않음** |
+| `OLLAMA_BASE_URL` | `ollama_base_url` (`ai.yml`) | `http://127.0.0.1:11434` | ai-vm 내부 Ollama 전체 URL — engine 코드가 단일 URL 키 요구 |
+| `OLLAMA_MODEL` | `ollama_model` (`ai.yml`) | `gemma2:2b` | 진단 로직이 사용할 모델명 |
 
 > `app.env.j2`의 `{% if ollama_base_url is defined %}` 블록으로 조건 렌더링 — api·consumer vm에는 미주입.
 

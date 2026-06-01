@@ -18,10 +18,10 @@ assessment-engine·assessment-agent 두 repo의 contract 대비 본 infra의 환
 
 | # | 문제 | 영향 | 위치 |
 |:--:|---|---|---|
-| 1 | `OLLAMA_HOST` + `OLLAMA_PORT` 분리 주입 — engine은 `OLLAMA_BASE_URL` 단일 키 요구 | AI VM diagnostic 전부 동작 불가 — LLM·embedding 호출 실패 | `playbook-ai.yml` line 24-25, `engine/ansible/roles/app/templates/app.env.j2` line 21-25 |
-| 2 | agent에 `WORKER_DOWNLOAD_ALLOWED_HOSTS` 미주입 | 미설정 = **모든 host blocked = worker 완전 비활성** → `task.install` 처리 안 됨 | `agent/ansible/roles/agent_env/templates/agent.env.j2` |
+| 1 ✅ | ~~`OLLAMA_HOST` + `OLLAMA_PORT` 분리 주입~~ | 해소 — `ai.yml`에 `ollama_base_url` 신설, playbook-ai·app.env.j2가 `OLLAMA_BASE_URL` 단일 키로 inject | — |
+| 2 ✅ | ~~agent에 `WORKER_DOWNLOAD_ALLOWED_HOSTS` 미주입~~ | 해소 — `agent.env.j2`에 추가, 값은 `worker_download_allowed_hosts` (`vars.yml`, ZDM host) | — |
 | 3 ✅ | ~~agent에 `RABBITMQ_WORKER_USER` / `RABBITMQ_WORKER_PASS` 미주입~~ | 해소 — `agent.env.local.j2`에 추가 (ADR-0009, publisher 자격 재사용) | — |
-| 4 | `WORKER_TASK_EXCHANGE` / `WORKER_TASK_RESULT_KEY` / `WORKER_TASK_QUEUE_PREFIX` 양쪽 미주입 | engine consumer ↔ agent worker 간 routing 계약 불일치 시 결과 보고 유실 | engine playbook 3종 + `agent.env.j2` |
+| 4 ✅ | ~~`WORKER_TASK_EXCHANGE` / `WORKER_TASK_RESULT_KEY` / `WORKER_TASK_QUEUE_PREFIX` 양쪽 미주입~~ | 해소 — engine.yml/vars.yml 변수 정의, 양쪽 template에 inject. routing key 동기화 필수 | — |
 
 ---
 
@@ -29,9 +29,9 @@ assessment-engine·assessment-agent 두 repo의 contract 대비 본 infra의 환
 
 | # | 문제 | 영향 |
 |:--:|---|---|
-| 5 | `APP_ENV` 전혀 미주입 | 모든 engine 컴포넌트가 `dev` 기본값으로 동작 → `_WEAK_VALUES` 검증 안 돎. `vault_db_password=assessment` 같은 dev default가 prod로 흘러도 startup 차단 없음 |
-| 6 | `LOG_FORMAT` 미주입 | `text` 기본값. prod 권장 `json` 미적용 → log aggregator indexing 불리 |
-| 7 | vhost 값 검증 필요 — engine docs default는 `/assessment`(leading slash 포함), 본 infra는 `assessment` | RabbitMQ에서 `/assessment`와 `assessment`는 다른 vhost. engine·agent·MQ role 모두 `assessment`로 통일돼 작동은 함 — 다만 engine docs의 prod recommendation과 미일치 |
+| 5 ✅ | ~~`APP_ENV` 전혀 미주입~~ | 해소 — `engine.yml` `engine_app_env: production` 정의, app.env.j2 + 3개 playbook 모두 inject. vault placeholder 상태 배포 시 fail-fast 발동 — 강한 secret 후 production 유지 |
+| 6 ✅ | ~~`LOG_FORMAT` 미주입~~ | 해소 — `engine_log_format: json` 정의, 동일 경로 inject |
+| 7 | vhost 값 검증 필요 — engine docs default는 `/assessment`(leading slash 포함), 본 infra는 `assessment` | (변경 없음) RabbitMQ에서 `/assessment`와 `assessment`는 다른 vhost. engine·agent·MQ role 모두 `assessment`로 통일돼 작동은 함 — engine docs prod recommendation과 차이 |
 
 ---
 
@@ -42,7 +42,7 @@ assessment-engine·assessment-agent 두 repo의 contract 대비 본 infra의 환
 | 8 | API VM | `ZDM_PACKAGE_PATH`, `ZDM_PACKAGE_SCRIPT`, `ZDM_META_CONNECT_TIMEOUT_SEC`, `ZDM_META_TOTAL_TIMEOUT_SEC`, `REDIS_TTL_ZDM_PACKAGE_SHA256` |
 | 9 | API VM | `WEB_PORT`, `WEB_RELOAD`, `INSTALL_TIMEOUT_SEC`, `AGENT_RESTART_ALERT_THRESHOLD` |
 | 10 | AI VM (diagnostic-worker) | `LLM_TIMEOUT_SECONDS`, `RAG_ENABLED`, `EMBEDDING_PROVIDER/MODEL/DIMENSION/TIMEOUT_SECONDS`, `RAG_TOP_K`, `RAG_MAX_CONTEXT_CHARS`, `WORKER_JOB_TIMEOUT_SECONDS` |
-| 11 | engine 전 컴포넌트 | `RABBITMQ_EXCHANGE`, `RABBITMQ_ROUTING_KEY_INVENTORY/METRICS/ERROR`, `DIAGNOSTIC_ROUTING_KEY`, `DIAGNOSTIC_QUEUE_TTL_MS`, `DIAGNOSTIC_QUEUE_MAX_LEN`, `SQLALCHEMY_ECHO` |
+| 11 부분 ✅ | engine 전 컴포넌트 | ~~`RABBITMQ_EXCHANGE`, `RABBITMQ_ROUTING_KEY_*`, `DIAGNOSTIC_ROUTING_KEY/TTL_MS/MAX_LEN`~~ 해소 (Critical #4 함께 처리). 남은 항목: `SQLALCHEMY_ECHO` |
 | 12 | agent | `AGENT_INTERVAL_SEC`, `AGENT_INVENTORY_REFRESH_SEC`, `RABBITMQ_HEARTBEAT_SEC`, `RABBITMQ_CONFIRM_TIMEOUT_SEC`, `AGENT_DRAIN_GRACE_SEC` / `TERM_SEC` / `PUBLISH_SEC` |
 
 ---
