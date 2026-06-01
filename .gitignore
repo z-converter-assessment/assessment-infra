@@ -10,6 +10,8 @@
 # Ansible — generated/secret
 **/ansible/inventory.yml
 **/ansible/group_vars/all/vault.yml
+# agent vault는 engine vault를 가리키는 symlink — 구조 보존 위해 commit
+!agent/ansible/group_vars/all/vault.yml
 
 # 배포 artifact — 운영자가 bastion에서 다운로드 후 복사
 engine/ansible/files/wheels/*.whl

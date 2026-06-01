@@ -6,9 +6,9 @@
 #   3. ansible-vault encrypt vault.yml
 #   4. ~/.vault-pass (mode 0400)에 복호화 패스워드 저장
 #
-# 사용처: app role (api·consumer) env 주입, postgres role 계정 생성, rabbitmq role 계정 생성
+# 사용처: app role (api·consumer) env 주입, postgres role 계정 생성, rabbitmq role 계정 생성,
+#         agent role (agent/ansible/group_vars/all/vault.yml 은 본 파일의 symlink).
 # 환경변수 키 카탈로그: docs/operations/env-engine.md
-# Agent와 공유되는 RabbitMQ 자격(vault_mq_*)은 agent vault.yml.example과 동일 값 유지.
 
 # ── PostgreSQL ─────────────────────────────────────────────────────
 # postgres role이 본 값으로 DB·user를 create.
@@ -20,7 +20,7 @@ vault_db_password: CHANGEME
 # ── RabbitMQ ───────────────────────────────────────────────────────
 # rabbitmq role이 본 값으로 vhost·user 생성.
 # app role이 본 값을 RABBITMQ_VHOST·RABBITMQ_USER·RABBITMQ_PASSWORD로 주입.
-# *** Agent vault.yml과 반드시 동일 값 *** — agent도 같은 broker에 같은 자격으로 접속.
+# agent도 같은 broker에 같은 자격으로 접속 — agent vault.yml은 본 파일의 symlink.
 vault_mq_vhost: assessment
 vault_mq_user: assessment
 vault_mq_password: CHANGEME

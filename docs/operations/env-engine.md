@@ -122,7 +122,7 @@ vault.yml (암호화)           common.yml / zdm.yml          (gen-inventory.sh 
 | `RABBITMQ_PORT` | `5672` (고정) | |
 | `RABBITMQ_VHOST` | `vault_mq_vhost` | rabbitmq role이 동일 값으로 vhost 생성 |
 | `RABBITMQ_USER` | `vault_mq_user` | rabbitmq role이 동일 값으로 user 생성 |
-| `RABBITMQ_PASSWORD` | `vault_mq_password` | **Vault** — agent vault.yml과 **반드시 동일** |
+| `RABBITMQ_PASSWORD` | `vault_mq_password` | **Vault** — agent vault는 본 파일 symlink |
 | `RABBITMQ_EXCHANGE` | `zdm.yml` → `rabbitmq_exchange` | 기본값 `assessment`. agent의 publish exchange와 일치 필수 |
 | `RABBITMQ_ROUTING_KEY_INVENTORY` | `zdm.yml` → `rabbitmq_routing_key_inventory` | 기본값 `server.inventory`. agent와 일치 필수 |
 | `RABBITMQ_ROUTING_KEY_METRICS` | `zdm.yml` → `rabbitmq_routing_key_metrics` | 기본값 `server.metrics`. agent와 일치 필수 |
@@ -220,12 +220,9 @@ sudo cat /opt/assessment/assessment-api.env
 
 ### MQ 자격증명 agent 동기화
 
-`vault_mq_user` / `vault_mq_password` / `vault_mq_vhost` 는 engine과 agent가 동일 broker를 사용하므로 반드시 일치해야 한다.
+`vault_mq_user` / `vault_mq_password` / `vault_mq_vhost` 는 engine과 agent가 동일 broker를 사용한다.
 
-| 파일 | 변수 |
-|---|---|
-| `engine/ansible/group_vars/all/vault.yml` | `vault_mq_user`, `vault_mq_password`, `vault_mq_vhost` |
-| `agent/ansible/group_vars/all/vault.yml` | 동일 키, 동일 값 |
+`agent/ansible/group_vars/all/vault.yml` 은 `engine/ansible/group_vars/all/vault.yml` 을 가리키는 **symlink** — 단일 파일이므로 동기화 작업 불필요. agent playbook 실행 시에도 engine vault를 그대로 로드한다.
 
 ### MQ routing key agent 동기화
 
