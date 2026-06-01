@@ -6,13 +6,7 @@ engine VM에 주입되는 환경변수의 단일 진실. 출처·주입 경로·
 
 ## 수정 우선순위
 
-| 순위 | 변수 | 문제 | 현재 영향 |
-|:---:|---|---|---|
-| 🔴 1 | `OLLAMA_BASE_URL` | engine 코드가 단일 URL 키 요구. 현재 `OLLAMA_HOST`+`OLLAMA_PORT` 분리 주입 → **Ollama 연결 불가** | ai-vm diagnostic 전면 불동작 |
-| 🔴 2 | `APP_ENV` | 전혀 미주입 → `dev` 기본값 동작. prod 보안 검증 미발동 | 전체 VM |
-| 🟡 3 | `RABBITMQ_EXCHANGE` 및 routing key 군 | 기본값 의존. agent와 실제 라우팅 키가 다를 경우 메시지 유실 | consumer/ai-vm |
-| 🟡 4 | `ZDM_PACKAGE_PATH` / `ZDM_PACKAGE_SCRIPT` | 미주입 → ZDM install task 실패 가능 | api-vm |
-| 🟡 5 | `LOG_FORMAT` | 미주입 → `text` 기본값. prod에서 `json` 권장 | 전체 VM |
+engine·agent repo 양쪽 contract 대비 본 infra의 누락·오류 전체 카탈로그는 `env-audit.md` 참조. 현재 inject 상태를 본 문서가 기록하고, 격차는 audit이 추적한다.
 
 ---
 

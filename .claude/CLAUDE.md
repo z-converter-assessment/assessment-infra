@@ -37,9 +37,11 @@
 | `docs/architecture/topology.md` | 어디에 배치되어 있는가? (네트워크·VM·SG 매트릭스) |
 | `docs/architecture/runtime.md` | 실행 시 어떻게 흐르는가? (메시지·env·배포 흐름) |
 | `docs/architecture/components.md` | 각 VM의 책임·spec·인터페이스는? |
+| `docs/architecture/agent-publish.md` | agent CM2 모델·collector·worker connection 분리 메커니즘 |
 | `docs/setup.md` | 초기 구축 단계별 가이드 |
 | `docs/operations/env-engine.md` | engine VM 환경변수 카탈로그 |
 | `docs/operations/env-agent.md` | agent VM 환경변수 카탈로그 |
+| `docs/operations/env-audit.md` | engine·agent repo contract 대비 inject 격차 (수정 완료 시 폐기) |
 | `docs/operations/troubleshooting.md` | 작업 중 문제 해결 |
 | `docs/operations/release.md` | release artifact 출처 |
 | `docs/adr/` | 의사결정 시점 로그 (0001~) |
