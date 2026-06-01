@@ -114,3 +114,12 @@
     owner: "{{ agent_user }}"
     group: "{{ agent_group }}"
     mode: "0750"
+
+- name: Grant NOPASSWD sudo to assessment-agent
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/assessment-agent
+    content: "{{ agent_user }} ALL=(ALL) NOPASSWD: ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s

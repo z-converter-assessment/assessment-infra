@@ -15,18 +15,10 @@ Restart=on-failure
 RestartSec=5
 
 # hardening
-NoNewPrivileges=yes
-ProtectSystem=strict
+# NoNewPrivileges / CapabilityBoundingSet / AmbientCapabilities 는 의도적으로 비활성화 —
+# 진단 기능이 sudo로 권한 상승을 요구.
 PrivateTmp=yes
-PrivateDevices=yes
-CapabilityBoundingSet=
-AmbientCapabilities=
-RestrictNamespaces=yes
 RestrictRealtime=yes
-ProtectKernelTunables=yes
-ProtectControlGroups=yes
-ProtectHome=yes
-ReadWritePaths={{ agent_dir }}
 
 [Install]
 WantedBy=multi-user.target
