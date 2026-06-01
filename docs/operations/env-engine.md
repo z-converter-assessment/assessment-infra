@@ -68,8 +68,11 @@ vault.yml (암호화)           common.yml / zdm.yml          (gen-inventory.sh 
 | `SECRET_KEY` | ✓ | ✓ | ✓ | `vault_app_secret_key` (**Vault**) |
 | `ZDM_DEFAULT_IP` | ✓ | ✓ | ✓ | `zdm_default_ip` (`zdm.yml`) |
 | `ZDM_DEFAULT_USER` | ✓ | ✓ | ✓ | `zdm_default_user` (`zdm.yml`) |
-| `ZDM_PACKAGE_PATH` | ⚠ | — | — | `zdm.yml` 추가 필요 |
-| `ZDM_PACKAGE_SCRIPT` | ⚠ | — | — | `zdm.yml` 추가 필요 |
+| `ZDM_PACKAGE_PATH` | ✓ | ✓ | ✓ | `zdm_package_path` (`zdm.yml`) |
+| `ZDM_PACKAGE_SCRIPT` | ✓ | ✓ | ✓ | `zdm_package_script` (`zdm.yml`) |
+| `ZDM_META_CONNECT_TIMEOUT_SEC` | ✓ | ✓ | ✓ | `zdm_meta_connect_timeout_sec` (`zdm.yml`) |
+| `ZDM_META_TOTAL_TIMEOUT_SEC` | ✓ | ✓ | ✓ | `zdm_meta_total_timeout_sec` (`zdm.yml`) |
+| `REDIS_TTL_ZDM_PACKAGE_SHA256` | ✓ | ✓ | ✓ | `redis_ttl_zdm_package_sha256` (`zdm.yml`) |
 | `OLLAMA_BASE_URL` | — | — | ✓ | `ollama_base_url` (`ai.yml`, `http://127.0.0.1:11434`) |
 | `OLLAMA_MODEL` | — | — | ✓ | `ollama_model` (`ai.yml`, `gemma2:2b`) |
 

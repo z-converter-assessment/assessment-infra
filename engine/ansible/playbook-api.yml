@@ -32,5 +32,10 @@
       SECRET_KEY: "{{ vault_app_secret_key }}"
       ZDM_DEFAULT_IP: "{{ zdm_default_ip }}"
       ZDM_DEFAULT_USER: "{{ zdm_default_user }}"
+      ZDM_PACKAGE_PATH: "{{ zdm_package_path }}"
+      ZDM_PACKAGE_SCRIPT: "{{ zdm_package_script }}"
+      ZDM_META_CONNECT_TIMEOUT_SEC: "{{ zdm_meta_connect_timeout_sec }}"
+      ZDM_META_TOTAL_TIMEOUT_SEC: "{{ zdm_meta_total_timeout_sec }}"
+      REDIS_TTL_ZDM_PACKAGE_SHA256: "{{ redis_ttl_zdm_package_sha256 }}"
   roles:
     - app
