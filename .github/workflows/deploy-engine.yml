@@ -13,15 +13,16 @@ jobs:
       - name: checkout assessment-infra
         uses: actions/checkout@v4
 
-      - name: regenerate inventory
-        run: python3 scripts/gen_inventory.py
+      - name: terraform init
+        run: |
+          cd engine/terraform
+          terraform init -input=false
 
       - name: terraform plan
         id: tf_plan
         run: |
           cd engine/terraform
-          terraform init -input=false
-          terraform plan -detailed-exitcode -out=tfplan 2>&1 | tee /tmp/tf_plan.txt
+          terraform plan -detailed-exitcode -out=tfplan 2>&1
           echo "exitcode=$?" >> $GITHUB_OUTPUT
         continue-on-error: true
 
@@ -31,8 +32,7 @@ jobs:
           cd engine/terraform
           terraform apply -auto-approve tfplan
 
-      - name: regenerate inventory (apply 후 IP 갱신)
-        if: steps.tf_plan.outputs.exitcode == '2'
+      - name: generate inventory
         run: python3 scripts/gen_inventory.py
 
       - name: ansible-playbook engine
