@@ -45,11 +45,7 @@ def tf_output(workdir: Path) -> dict:
 
 def gen_engine_inventory(engine_out: dict) -> str:
     required = [
-        "api_vm_private_ip",
-        "mq_vm_private_ip",
-        "cache_vm_private_ip",
-        "db_vm_private_ip",
-        "consumer_vm_private_ip",
+        "engine_vm_private_ip",
         "ai_vm_private_ip",
     ]
     missing = [k for k in required if k not in engine_out]
@@ -70,26 +66,10 @@ all:
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 
   children:
-    db:
+    engine:
       hosts:
-        db-vm:
-          ansible_host: {ip('db_vm_private_ip')}
-    mq:
-      hosts:
-        mq-vm:
-          ansible_host: {ip('mq_vm_private_ip')}
-    cache:
-      hosts:
-        cache-vm:
-          ansible_host: {ip('cache_vm_private_ip')}
-    api:
-      hosts:
-        api-vm:
-          ansible_host: {ip('api_vm_private_ip')}
-    consumer:
-      hosts:
-        consumer-vm:
-          ansible_host: {ip('consumer_vm_private_ip')}
+        engine-vm:
+          ansible_host: {ip('engine_vm_private_ip')}
     ai:
       hosts:
         ai-vm:
@@ -101,13 +81,13 @@ def gen_agent_inventory(agent_out: dict, engine_out: dict) -> str:
     for k in ("agent_vms", "agent_vms_by_family", "agent_vms_by_os"):
         if k not in agent_out:
             sys.exit(f"ERROR: agent terraform output 누락 — {k}")
-    if "mq_vm_private_ip" not in engine_out:
-        sys.exit("ERROR: engine terraform의 mq_vm_private_ip 필요 (agent → MQ 접속용)")
+    if "engine_vm_private_ip_for_agent" not in engine_out:
+        sys.exit("ERROR: engine terraform의 engine_vm_private_ip_for_agent 필요 (agent → MQ 접속용)")
 
     agent_vms = dict(agent_out["agent_vms"]["value"])
     by_family: dict[str, list] = dict(agent_out["agent_vms_by_family"]["value"])
     by_os: dict[str, list] = dict(agent_out["agent_vms_by_os"]["value"])
-    engine_mq_host = engine_out["mq_vm_private_ip"]["value"]
+    engine_mq_host = engine_out["engine_vm_private_ip_for_agent"]["value"]
 
     # windows_vm은 windows.tf의 별도 resource — agent_vms output에 포함되지 않음.
     # 활성화된 경우만 inventory에 병합.
@@ -185,7 +165,7 @@ def main():
     ENGINE_INV.write_text(engine_inv)
     AGENT_INV.write_text(agent_inv)
 
-    n_engine = 6  # API·MQ·Cache·DB·Consumer·AI
+    n_engine = 2  # Engine·AI
     n_agent_linux = agent_out.get("agent_total_count", {}).get("value", 0)
     win = agent_out.get("windows_vm", {}).get("value")
     n_agent = n_agent_linux + (1 if win and win.get("ip") else 0)

@@ -1,0 +1,9 @@
+---
+- name: apt update
+  apt:
+    update_cache: true
+
+- name: docker compose restart
+  command: docker compose restart
+  args:
+    chdir: "{{ compose_dir }}"

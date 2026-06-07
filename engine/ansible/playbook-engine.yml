@@ -1,0 +1,5 @@
+- name: Engine VM — docker compose stack 배포
+  hosts: engine
+  become: true
+  roles:
+    - engine_compose

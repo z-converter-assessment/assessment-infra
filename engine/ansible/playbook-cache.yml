@@ -1,5 +1,0 @@
-- name: Cache VM — Redis
-  hosts: cache
-  become: true
-  roles:
-    - redis

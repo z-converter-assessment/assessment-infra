@@ -1,28 +1,8 @@
 # ── Security Groups ───────────────────────────────────────────────
 
-resource "openstack_networking_secgroup_v2" "api_sg" {
-  name        = "api-sg"
-  description = "API VM — SSH from bastion, 8000 from internal"
-}
-
-resource "openstack_networking_secgroup_v2" "mq_sg" {
-  name        = "mq-sg"
-  description = "MQ VM — SSH from bastion, AMQP/mgmt from api+consumer"
-}
-
-resource "openstack_networking_secgroup_v2" "cache_sg" {
-  name        = "cache-sg"
-  description = "Cache VM — SSH from bastion, 6379 from api+consumer"
-}
-
-resource "openstack_networking_secgroup_v2" "db_sg" {
-  name        = "db-sg"
-  description = "DB VM — SSH from bastion, 5432 from api+consumer"
-}
-
-resource "openstack_networking_secgroup_v2" "consumer_sg" {
-  name        = "consumer-sg"
-  description = "Consumer VM — SSH from bastion only"
+resource "openstack_networking_secgroup_v2" "engine_sg" {
+  name        = "engine-sg"
+  description = "Engine VM — SSH/API/MQ(agent+ai)/RabbitMQ-mgmt from bastion, Postgres/Redis from ai"
 }
 
 resource "openstack_networking_secgroup_v2" "agent_sg" {
@@ -32,198 +12,82 @@ resource "openstack_networking_secgroup_v2" "agent_sg" {
 
 resource "openstack_networking_secgroup_v2" "ai_sg" {
   name        = "ai-sg"
-  description = "AI VM — SSH from bastion, outbound to mq:5672 db:5432 cache:6379 ollama:local"
+  description = "AI VM — SSH from bastion, Ollama(11434) from engine"
 }
 
-# ── api-sg ingress ────────────────────────────────────────────────
+# ── engine-sg ingress ─────────────────────────────────────────────
 
-resource "openstack_networking_secgroup_rule_v2" "api_ssh" {
+resource "openstack_networking_secgroup_rule_v2" "engine_ssh" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 22
   port_range_max    = 22
   remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
-  security_group_id = openstack_networking_secgroup_v2.api_sg.id
+  security_group_id = openstack_networking_secgroup_v2.engine_sg.id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "api_8000" {
+resource "openstack_networking_secgroup_rule_v2" "engine_8000" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 8000
   port_range_max    = 8000
   remote_ip_prefix  = var.internal_cidr
-  security_group_id = openstack_networking_secgroup_v2.api_sg.id
+  security_group_id = openstack_networking_secgroup_v2.engine_sg.id
 }
 
-# ── mq-sg ingress ─────────────────────────────────────────────────
-
-resource "openstack_networking_secgroup_rule_v2" "mq_ssh" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 22
-  port_range_max    = 22
-  remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
-  security_group_id = openstack_networking_secgroup_v2.mq_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_api" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 5672
-  port_range_max    = 5672
-  remote_group_id   = openstack_networking_secgroup_v2.api_sg.id
-  security_group_id = openstack_networking_secgroup_v2.mq_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_consumer" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 5672
-  port_range_max    = 5672
-  remote_group_id   = openstack_networking_secgroup_v2.consumer_sg.id
-  security_group_id = openstack_networking_secgroup_v2.mq_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_agent" {
+# agent fleet → MQ (AMQP)
+resource "openstack_networking_secgroup_rule_v2" "engine_5672_from_agent" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 5672
   port_range_max    = 5672
   remote_group_id   = openstack_networking_secgroup_v2.agent_sg.id
-  security_group_id = openstack_networking_secgroup_v2.mq_sg.id
+  security_group_id = openstack_networking_secgroup_v2.engine_sg.id
 }
 
-# 15672 (RabbitMQ Management UI) — 운영 편의용. api·consumer VM에서 브라우저 포워딩으로 접근.
-resource "openstack_networking_secgroup_rule_v2" "mq_15672_from_api" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 15672
-  port_range_max    = 15672
-  remote_group_id   = openstack_networking_secgroup_v2.api_sg.id
-  security_group_id = openstack_networking_secgroup_v2.mq_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "mq_15672_from_consumer" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 15672
-  port_range_max    = 15672
-  remote_group_id   = openstack_networking_secgroup_v2.consumer_sg.id
-  security_group_id = openstack_networking_secgroup_v2.mq_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "mq_5672_from_ai" {
+# AI VM diagnostic worker → MQ / Postgres / Redis (compose 서비스들이 engine VM 호스트에 바인딩)
+resource "openstack_networking_secgroup_rule_v2" "engine_5672_from_ai" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 5672
   port_range_max    = 5672
   remote_group_id   = openstack_networking_secgroup_v2.ai_sg.id
-  security_group_id = openstack_networking_secgroup_v2.mq_sg.id
+  security_group_id = openstack_networking_secgroup_v2.engine_sg.id
 }
 
-# ── cache-sg ingress ──────────────────────────────────────────────
-
-resource "openstack_networking_secgroup_rule_v2" "cache_ssh" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 22
-  port_range_max    = 22
-  remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
-  security_group_id = openstack_networking_secgroup_v2.cache_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "cache_6379_from_api" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 6379
-  port_range_max    = 6379
-  remote_group_id   = openstack_networking_secgroup_v2.api_sg.id
-  security_group_id = openstack_networking_secgroup_v2.cache_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "cache_6379_from_consumer" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 6379
-  port_range_max    = 6379
-  remote_group_id   = openstack_networking_secgroup_v2.consumer_sg.id
-  security_group_id = openstack_networking_secgroup_v2.cache_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "cache_6379_from_ai" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 6379
-  port_range_max    = 6379
-  remote_group_id   = openstack_networking_secgroup_v2.ai_sg.id
-  security_group_id = openstack_networking_secgroup_v2.cache_sg.id
-}
-
-# ── db-sg ingress ─────────────────────────────────────────────────
-
-resource "openstack_networking_secgroup_rule_v2" "db_ssh" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 22
-  port_range_max    = 22
-  remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
-  security_group_id = openstack_networking_secgroup_v2.db_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "db_5432_from_api" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 5432
-  port_range_max    = 5432
-  remote_group_id   = openstack_networking_secgroup_v2.api_sg.id
-  security_group_id = openstack_networking_secgroup_v2.db_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "db_5432_from_consumer" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 5432
-  port_range_max    = 5432
-  remote_group_id   = openstack_networking_secgroup_v2.consumer_sg.id
-  security_group_id = openstack_networking_secgroup_v2.db_sg.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "db_5432_from_ai" {
+resource "openstack_networking_secgroup_rule_v2" "engine_5432_from_ai" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 5432
   port_range_max    = 5432
   remote_group_id   = openstack_networking_secgroup_v2.ai_sg.id
-  security_group_id = openstack_networking_secgroup_v2.db_sg.id
+  security_group_id = openstack_networking_secgroup_v2.engine_sg.id
 }
 
-# ── consumer-sg ingress ───────────────────────────────────────────
-
-resource "openstack_networking_secgroup_rule_v2" "consumer_ssh" {
+resource "openstack_networking_secgroup_rule_v2" "engine_6379_from_ai" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
-  port_range_min    = 22
-  port_range_max    = 22
+  port_range_min    = 6379
+  port_range_max    = 6379
+  remote_group_id   = openstack_networking_secgroup_v2.ai_sg.id
+  security_group_id = openstack_networking_secgroup_v2.engine_sg.id
+}
+
+# RabbitMQ Management UI — bastion에서 SSH 포트포워딩으로 접근
+resource "openstack_networking_secgroup_rule_v2" "engine_15672_from_bastion" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 15672
+  port_range_max    = 15672
   remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
-  security_group_id = openstack_networking_secgroup_v2.consumer_sg.id
+  security_group_id = openstack_networking_secgroup_v2.engine_sg.id
 }
 
 # ── agent-sg ingress ──────────────────────────────────────────────
@@ -267,12 +131,13 @@ resource "openstack_networking_secgroup_rule_v2" "ai_ssh" {
   security_group_id = openstack_networking_secgroup_v2.ai_sg.id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "ai_11434_from_consumer" {
+# engine compose 서비스가 AI VM Ollama를 호출하는 경로용 (api 등)
+resource "openstack_networking_secgroup_rule_v2" "ai_11434_from_engine" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 11434
   port_range_max    = 11434
-  remote_group_id   = openstack_networking_secgroup_v2.consumer_sg.id
+  remote_group_id   = openstack_networking_secgroup_v2.engine_sg.id
   security_group_id = openstack_networking_secgroup_v2.ai_sg.id
 }

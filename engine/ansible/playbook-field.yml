@@ -1,0 +1,8 @@
+- name: Engine (현장 appliance) — docker compose stack 배포
+  hosts: localhost
+  connection: local
+  become: true
+  vars:
+    compose_mount_cinder: false
+  roles:
+    - engine_compose

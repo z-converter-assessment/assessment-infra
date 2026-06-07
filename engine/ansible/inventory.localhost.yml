@@ -1,0 +1,7 @@
+# 현장 appliance 전용 inventory — playbook-field.yml 에서 사용
+# ansible_connection=local 이므로 SSH 불필요
+
+all:
+  hosts:
+    localhost:
+      ansible_connection: local

@@ -27,12 +27,12 @@ variable "external_network_name" {
 }
 
 variable "bastion_sg_name" {
-  description = "기존 bastion VM(engine-main·Agent-vm)에 적용된 SG 이름 — SSH source 허용용"
+  description = "기존 bastion VM에 적용된 SG 이름 — SSH source 허용용"
   type        = string
 }
 
 variable "internal_cidr" {
-  description = "사내망 CIDR — api-vm 8000 포트 ingress 허용 범위 (폐쇄망이면 0.0.0.0/0 유지)"
+  description = "사내망 CIDR — engine-vm 8000 포트 ingress 허용 범위 (폐쇄망이면 0.0.0.0/0 유지)"
   type        = string
   default     = "0.0.0.0/0"
 }
@@ -53,28 +53,8 @@ variable "keypair_name" {
 
 # ── Flavor ────────────────────────────────────────────────────────
 
-variable "flavor_api" {
-  description = "API VM flavor — 최저 플레이버 (1 vCPU / 1 GB)"
-  type        = string
-}
-
-variable "flavor_mq" {
-  description = "MQ VM flavor — Erlang 런타임 메모리 요구로 2 GB 필수 (1 vCPU / 2 GB)"
-  type        = string
-}
-
-variable "flavor_cache" {
-  description = "Cache VM flavor — 최저 플레이버 (1 vCPU / 1 GB)"
-  type        = string
-}
-
-variable "flavor_db" {
-  description = "DB VM flavor — PostgreSQL shared_buffers + OS 여유로 2 GB 필수 (1 vCPU / 2 GB)"
-  type        = string
-}
-
-variable "flavor_consumer" {
-  description = "Consumer VM flavor — 최저 플레이버 (1 vCPU / 1 GB)"
+variable "flavor_engine" {
+  description = "Engine VM flavor — api·consumer·postgres·rabbitmq·redis 전체 호스트 (최소 4 vCPU / 8 GB 권장)"
   type        = string
 }
 
@@ -82,4 +62,3 @@ variable "flavor_ai" {
   description = "AI VM flavor — Ollama 최경량 모델 (~3B Q4 ≈ 2 GB) + OS 여유. ZDM 플레이버 (4 vCPU / 8 GB / 100 GB disk)"
   type        = string
 }
-

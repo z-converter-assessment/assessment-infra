@@ -10,11 +10,11 @@ agent_subnet_name  = "target-vms"
 # openstack network list --external 로 확인
 external_network_name = "TODO"
 
-# 기존 engine-main · Agent-vm에 적용된 SG 이름
+# 기존 bastion VM에 적용된 SG 이름
 # openstack server show engine-main -f json | jq '.security_groups'
 bastion_sg_name = "TODO"
 
-# api-vm 8000 포트 허용 범위 — 폐쇄망이면 0.0.0.0/0 유지
+# engine-vm 8000 포트 허용 범위 — 폐쇄망이면 0.0.0.0/0 유지
 internal_cidr = "0.0.0.0/0"
 
 # ── 이미지 · keypair ──────────────────────────────────────────────
@@ -22,16 +22,10 @@ image_name   = "debian13_x64_uefi_3G"
 keypair_name = "engine-key"
 
 # ── Flavor ────────────────────────────────────────────────────────
-# 결정된 플레이버 (CLAUDE.md 아키텍처 요약 참조):
-#   - API·Cache·Worker: 최저 (1 vCPU / 1 GB)
-#   - MQ·DB: 1 vCPU / 2 GB (각각 Erlang·shared_buffers 메모리 요구)
-#   - AI: ZDM 플레이버 (4 vCPU / 8 GB / 100 GB) — Ollama 최경량 모델
+# engine-vm: api·consumer·postgres·rabbitmq·redis 전체 호스트 — 최소 4 vCPU / 8 GB 권장
+# ai-vm: Ollama 최경량 모델 + diagnostic worker (4 vCPU / 8 GB / 100 GB disk)
 #
 # openstack flavor list 로 확인 후 본 환경의 실제 flavor 이름 매핑
 
-flavor_api    = "c1_m1_r30"  # 1 vCPU / 1 GB
-flavor_mq     = "c1_m2_r40"  # 1 vCPU / 2 GB (MQ 전용 — 환경에 없으면 c2_m2_r40)
-flavor_cache  = "c1_m1_r30"  # 1 vCPU / 1 GB
-flavor_db     = "c1_m2_r40"  # 1 vCPU / 2 GB (DB 전용 — 환경에 없으면 c2_m4_r30)
-flavor_consumer = "c1_m1_r30"  # 1 vCPU / 1 GB
+flavor_engine = "c4_m8_r50"  # 4 vCPU / 8 GB 이상 권장
 flavor_ai     = "zdm"        # ZDM 플레이버 — 4 vCPU / 8 GB / 100 GB

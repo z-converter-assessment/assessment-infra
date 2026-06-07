@@ -1,0 +1,30 @@
+name: build-field-bundle
+
+on:
+  repository_dispatch:
+    types: [engine-release]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - name: checkout assessment-infra
+        uses: actions/checkout@v4
+
+      - name: build bundle
+        env:
+          ENGINE_VERSION: ${{ github.event.client_payload.engine_version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash engine/scripts/build-bundle.sh "$ENGINE_VERSION"
+
+      - name: upload bundle to release
+        env:
+          ENGINE_VERSION: ${{ github.event.client_payload.engine_version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BUNDLE="bundle-${ENGINE_VERSION}.tar.gz"
+          gh release upload "${ENGINE_VERSION}" "/tmp/${BUNDLE}" \
+            --repo z-converter-assessment/assessment-infra \
+            --clobber

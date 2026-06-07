@@ -1,5 +1,0 @@
-- name: MQ VM — RabbitMQ
-  hosts: mq
-  become: true
-  roles:
-    - rabbitmq

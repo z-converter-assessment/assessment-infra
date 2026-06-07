@@ -1,0 +1,187 @@
+---
+# ── Docker CE 설치 ─────────────────────────────────────────────────
+
+# docker GPG 키 검증에 필요한 도구 설치 — 없으면 이후 keyring 등록 단계에서 gpg 명령 실패
+- name: install docker prerequisites
+  apt:
+    name:
+      - ca-certificates  # HTTPS 인증서 검증
+      - curl             # GPG 키·release artifact 다운로드
+      - gnupg            # docker apt 저장소 서명 검증
+    state: present
+    update_cache: true
+
+# docker 공식 apt 저장소의 패키지 서명 검증용 GPG 공개키 등록 — 없으면 apt가 "NO_PUBKEY" 오류로 설치 거부
+- name: add docker apt keyring
+  shell: |
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/debian/gpg | \
+      gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+  args:
+    creates: /etc/apt/keyrings/docker.gpg
+
+# docker 공식 apt 저장소를 sources에 등록 — 없으면 Debian 기본 repo의 구버전(docker.io)이 설치됨
+- name: add docker apt repository
+  copy:
+    dest: /etc/apt/sources.list.d/docker.list
+    mode: "0644"
+    content: |
+      deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian trixie stable
+  notify: apt update
+
+# 위에서 추가한 docker 저장소가 반영되도록 apt cache를 즉시 갱신 — 안 하면 다음 apt install이 구버전을 바라봄
+- name: flush handlers (apt update)
+  meta: flush_handlers
+
+# docker 엔진 본체와 compose 플러그인 설치 — 없으면 컨테이너 실행·compose 명령 전체 불가
+- name: install docker-ce and compose plugin
+  apt:
+    name:
+      - docker-ce             # docker 엔진 데몬
+      - docker-ce-cli         # docker CLI
+      - containerd.io         # 컨테이너 런타임
+      - docker-buildx-plugin  # 멀티플랫폼 빌드 (번들 빌드 시 필요)
+      - docker-compose-plugin # `docker compose` 서브커맨드
+    state: present
+
+# docker 데몬 시작 및 부팅 시 자동 시작 등록 — 꺼져 있으면 이후 모든 docker 명령이 "Cannot connect to the Docker daemon" 오류
+- name: ensure docker service started
+  service:
+    name: docker
+    state: started
+    enabled: true
+
+# ansible_user(debian)를 docker 그룹에 추가 — 없으면 sudo 없이 docker 명령 실행 시 "permission denied" 오류
+- name: add ansible user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+
+# ── compose 작업 디렉토리 ──────────────────────────────────────────
+
+# docker-compose.yml·.env 파일을 놓을 작업 디렉토리 생성 — 없으면 이후 copy/template 태스크 실패
+- name: create compose directory
+  file:
+    path: "{{ compose_dir }}"
+    state: directory
+    mode: "0750"
+
+# ── release artifact 다운로드 (bastion → engine VM) ─────────────────
+
+# bastion(runner)에서 GitHub release의 docker-compose.yml을 /tmp에 다운로드
+# engine VM은 인터넷 직접 접근 불가이므로 delegate_to: localhost로 bastion이 대신 받음 — 실패하면 지정 버전의 compose 파일 없음
+- name: download docker-compose.yml to bastion
+  get_url:
+    url: "{{ engine_release_base_url }}/docker-compose.yml"
+    dest: "/tmp/engine-docker-compose-{{ engine_version }}.yml"
+    mode: "0644"
+    force: true
+  delegate_to: localhost
+  become: false
+
+# bastion의 /tmp에 받은 docker-compose.yml을 engine VM의 compose_dir로 복사 — 없으면 이후 compose pull/up 실패
+- name: copy docker-compose.yml to engine VM
+  copy:
+    src: "/tmp/engine-docker-compose-{{ engine_version }}.yml"
+    dest: "{{ compose_dir }}/docker-compose.yml"
+    mode: "0644"
+
+# ── .env 렌더링 ────────────────────────────────────────────────────
+
+# vault·group_vars의 secret과 설정값을 .env.j2 템플릿에 주입해 실제 .env 파일 생성
+# 없으면 compose 서비스가 DB·MQ·Redis 자격증명 없이 기동되어 즉시 오류로 종료
+- name: render .env from template
+  template:
+    src: .env.j2
+    dest: "{{ compose_dir }}/.env"
+    mode: "0600"
+
+# ── Cinder 볼륨 마운트 (OpenStack 검증 환경) ───────────────────────
+
+# XFS 파일시스템 포맷 도구 설치 — 없으면 mkfs.xfs 명령을 찾지 못해 볼륨 포맷 실패
+- name: install xfsprogs for volume format
+  apt:
+    name: xfsprogs
+    state: present
+  when: compose_mount_cinder | default(true)
+
+# /dev/vdb(db 볼륨)를 XFS로 포맷 — 새 Cinder 볼륨은 파일시스템이 없어 마운트 불가. 이미 포맷된 경우 creates 조건으로 스킵
+- name: format db volume (xfs, skip if already formatted)
+  command: mkfs.xfs {{ db_volume_device }}
+  args:
+    creates: "{{ db_mount_path }}/.xfs_formatted"
+  when: compose_mount_cinder | default(true)
+  register: db_format
+
+# /dev/vdc(mq 볼륨)를 XFS로 포맷 — 위와 동일 이유
+- name: format mq volume (xfs, skip if already formatted)
+  command: mkfs.xfs {{ mq_volume_device }}
+  args:
+    creates: "{{ mq_mount_path }}/.xfs_formatted"
+  when: compose_mount_cinder | default(true)
+  register: mq_format
+
+# postgres·rabbitmq 데이터를 보관할 마운트 포인트 디렉토리 생성 — 없으면 mount 태스크 실패
+- name: create mount points
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ db_mount_path }}"
+    - "{{ mq_mount_path }}"
+  when: compose_mount_cinder | default(true)
+
+# db 볼륨(/dev/vdb)을 /mnt/pgdata에 마운트하고 /etc/fstab 등록 — 없으면 postgres 데이터가 컨테이너 레이어에 저장되어 VM 재시작 시 소멸
+- name: mount db volume
+  mount:
+    path: "{{ db_mount_path }}"
+    src: "{{ db_volume_device }}"
+    fstype: xfs
+    opts: defaults
+    state: mounted
+  when: compose_mount_cinder | default(true)
+
+# mq 볼륨(/dev/vdc)을 /mnt/mqdata에 마운트 — 없으면 rabbitmq 메시지·큐 설정이 재시작 시 초기화
+- name: mount mq volume
+  mount:
+    path: "{{ mq_mount_path }}"
+    src: "{{ mq_volume_device }}"
+    fstype: xfs
+    opts: defaults
+    state: mounted
+  when: compose_mount_cinder | default(true)
+
+# ── Docker 이미지 로그인·pull ────────────────────────────────────────
+
+# GHCR(GitHub Container Registry) 인증 — private 이미지 접근 시 필요. ghcr_token 미전달 시 스킵(public 이미지만 있는 경우)
+- name: login to GHCR
+  shell: echo "{{ ghcr_token }}" | docker login ghcr.io -u "{{ ghcr_user | default('x-access-token') }}" --password-stdin
+  no_log: true
+  when: ghcr_token | default('') != ''
+
+# docker-compose.yml에 선언된 모든 서비스 이미지를 레지스트리에서 pull — 없으면 compose up 시 이미지 없음 오류
+- name: docker compose pull
+  command: docker compose pull
+  args:
+    chdir: "{{ compose_dir }}"
+
+# ── 서비스 기동 ────────────────────────────────────────────────────
+
+# 모든 compose 서비스를 백그라운드로 기동. --remove-orphans로 이전 배포의 불필요한 컨테이너 정리
+- name: docker compose up
+  command: docker compose up -d --remove-orphans
+  args:
+    chdir: "{{ compose_dir }}"
+
+# API 서비스가 실제로 요청을 받을 준비가 될 때까지 대기(최대 2분) — 실패하면 배포 파이프라인이 오류로 종료되어 비정상 배포 탐지
+- name: wait for api health check
+  uri:
+    url: "http://localhost:8000/health"
+    status_code: 200
+  register: health
+  retries: 12
+  delay: 10
+  until: health.status == 200
