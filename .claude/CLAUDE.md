@@ -103,7 +103,10 @@ assessment-infra/
 - **네트워크**: engine-subnet `10.0.10.0/24` / agent-subnet `10.0.20.0/24` — Horizon 수동
 - **FIP**: API VM + Bastion만. 나머지 사설 IP only
 - **파이프라인**: Horizon → Terraform → Ansible
-- **Docker 없음** (ADR-0003) — 모든 컴포넌트 인스턴스 위에 직접 설치
+- **배포 모델 전환 진행 중**:
+  - 현행: Docker 없음 + 컴포넌트당 VM 분리 + bastion 수동 실행 (ADR-0003 — Deprecated)
+  - 목표: 단일 노드 + docker compose (ADR-0010) + bastion self-hosted runner 자동화 (ADR-0011). 검증 환경(OpenStack)과 현장 appliance가 같은 compose 정의 공유
+  - terraform/ansible refactor 완료 시점에 위 "VM 8종"·"파이프라인" 라인과 함께 일괄 갱신
 
 VM 책임·spec 테이블·SG 매트릭스: `docs/architecture/components.md` / `topology.md`.
 

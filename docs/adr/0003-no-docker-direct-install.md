@@ -1,7 +1,9 @@
 # ADR-0003: Docker 미사용 — 컴포넌트 직접 설치 방식 채택
 
-- 상태: Accepted
+- 상태: Deprecated (2026-06-07 — ADR-0010이 대체)
 - 날짜: 2026-05-26
+
+> **Deprecation note**: 본 결정의 전제(컴포넌트별 VM 분리 + OpenStack 멀티 VM)는 이후 확정된 appliance 배포 시나리오와 정합하지 않게 되었다. ADR-0010이 단일 노드 + docker compose 모델을 채택하며 본 결정을 대체한다. 본 ADR 본문은 시점 로그로 보존.
 
 ## 컨텍스트
 
