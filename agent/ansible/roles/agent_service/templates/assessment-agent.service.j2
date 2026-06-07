@@ -1,0 +1,24 @@
+[Unit]
+Description=assessment-agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ agent_user }}
+Group={{ agent_group }}
+WorkingDirectory={{ agent_dir }}
+EnvironmentFile={{ agent_env_dir }}/agent.env
+EnvironmentFile={{ agent_env_dir }}/agent.env.local
+ExecStart={{ agent_binary_dest }}
+Restart=on-failure
+RestartSec=5
+
+# hardening
+# NoNewPrivileges / CapabilityBoundingSet / AmbientCapabilities 는 의도적으로 비활성화 —
+# 진단 기능이 sudo로 권한 상승을 요구.
+PrivateTmp=yes
+RestrictRealtime=yes
+
+[Install]
+WantedBy=multi-user.target

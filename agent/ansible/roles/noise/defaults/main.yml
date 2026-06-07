@@ -1,0 +1,7 @@
+noise_args_map:
+  noise_cpu_light:  "--cpu 1 --cpu-load 20"
+  noise_cpu_medium: "--cpu 2 --cpu-load 50"
+  noise_cpu_heavy:  "--cpu 0 --cpu-load 80"
+  noise_io:         "--io 2 --hdd 1"
+  noise_memory:     "--vm 1 --vm-bytes 256M"
+  noise_mixed:      "--cpu 1 --cpu-load 30 --io 1 --vm 1 --vm-bytes 128M"

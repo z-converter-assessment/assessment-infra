@@ -1,0 +1,90 @@
+---
+- name: install python3, venv, acl, packaging
+  apt:
+    name:
+      - python3
+      - python3-venv
+      - python3-packaging
+      - acl
+    state: present
+    update_cache: true
+
+- name: create app group
+  group:
+    name: "{{ app_group }}"
+    state: present
+
+- name: create app user
+  user:
+    name: "{{ app_user }}"
+    group: "{{ app_group }}"
+    home: "{{ app_dir }}"
+    shell: /usr/sbin/nologin
+    system: true
+    create_home: true
+    state: present
+
+- name: create virtualenv
+  command: python3 -m venv {{ app_venv }}
+  args:
+    creates: "{{ app_venv }}/bin/python"
+  become_user: "{{ app_user }}"
+
+# ── wheel 배포 (Option A: 운영자가 ansible/files/wheels/ 에 사전 복사) ─────
+- name: create release staging directory
+  file:
+    path: /tmp/release
+    state: directory
+    mode: "0755"
+
+- name: copy wheel to target
+  ansible.builtin.copy:
+    src: "wheels/{{ engine_wheel_file }}"
+    dest: "/tmp/release/{{ engine_wheel_file }}"
+    mode: "0644"
+
+- name: install wheel into venv
+  pip:
+    name: "/tmp/release/{{ engine_wheel_file }}"
+    virtualenv: "{{ app_venv }}"
+    state: present
+  become_user: "{{ app_user }}"
+# ────────────────────────────────────────────────────────────────────────────
+
+- name: write environment file
+  template:
+    src: app.env.j2
+    dest: "{{ app_dir }}/{{ app_service_name }}.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0600"
+
+- name: write systemd unit
+  template:
+    src: app.service.j2
+    dest: /etc/systemd/system/{{ app_service_name }}.service
+    mode: "0644"
+  notify: reload systemd
+
+- name: create migrations symlink (_migrations → migrations)
+  file:
+    src: "{{ app_venv }}/lib/python{{ python_version }}/site-packages/assessment_engine/_migrations"
+    dest: "{{ app_venv }}/lib/python{{ python_version }}/site-packages/assessment_engine/migrations"
+    state: link
+
+- name: run alembic migrations
+  command: >
+    {{ app_venv }}/bin/alembic
+    -c {{ app_venv }}/lib/python{{ python_version }}/site-packages/assessment_engine/_alembic.ini
+    upgrade head
+  args:
+    chdir: "{{ app_dir }}"
+  become_user: "{{ app_user }}"
+  when: app_run_alembic | default(false)
+  environment: "{{ app_env }}"
+
+- name: enable and start service
+  service:
+    name: "{{ app_service_name }}"
+    state: started
+    enabled: true

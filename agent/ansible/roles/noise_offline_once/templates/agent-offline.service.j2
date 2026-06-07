@@ -1,0 +1,6 @@
+[Unit]
+Description=Stop assessment-agent once (noise_offline_once)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl stop assessment-agent

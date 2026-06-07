@@ -1,0 +1,6 @@
+[Unit]
+Description=Periodic assessment-agent restart (noise demo)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl restart assessment-agent

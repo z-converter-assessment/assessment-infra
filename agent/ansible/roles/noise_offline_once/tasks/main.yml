@@ -1,0 +1,21 @@
+- name: Render agent-offline.service
+  ansible.builtin.template:
+    src: agent-offline.service.j2
+    dest: /etc/systemd/system/agent-offline.service
+    mode: "0644"
+
+- name: Render agent-offline.timer
+  ansible.builtin.template:
+    src: agent-offline.timer.j2
+    dest: /etc/systemd/system/agent-offline.timer
+    mode: "0644"
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable and start agent-offline.timer
+  ansible.builtin.systemd:
+    name: agent-offline.timer
+    enabled: true
+    state: started

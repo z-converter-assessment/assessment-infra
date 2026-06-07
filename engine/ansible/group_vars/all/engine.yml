@@ -1,0 +1,25 @@
+# assessment-engine release 버전
+# GitHub Actions 자동 배포 시 --extra-vars "engine_version=X.Y.Z"로 override됨
+engine_version: "0.1.1"
+
+# GitHub 릴리즈 다운로드 베이스 URL
+engine_release_base_url: "https://github.com/z-converter-assessment/assessment-engine/releases/download/{{ engine_version }}"
+
+# ── 운영 모드 마커 ────────────────────────────────────────────────
+engine_app_env: "production"
+engine_log_format: "json"
+
+# ── MQ routing 계약 (agent ↔ engine 양쪽 동일 값 의무) ─────────────
+engine_mq_exchange: "assessment"
+engine_mq_routing_key_inventory: "server.inventory"
+engine_mq_routing_key_metrics: "server.metrics"
+engine_mq_routing_key_error: "server.error"
+
+engine_mq_task_exchange: "assessment.tasks"
+engine_mq_task_result_key: "task.result"
+engine_mq_task_queue_prefix: "agent.tasks"
+
+# ── diagnostic 라우팅 (engine 내부 — api ↔ ai) ─────────────────────
+engine_diagnostic_routing_key: "diagnostic.request"
+engine_diagnostic_queue_ttl_ms: "86400000"
+engine_diagnostic_queue_max_len: "100000"

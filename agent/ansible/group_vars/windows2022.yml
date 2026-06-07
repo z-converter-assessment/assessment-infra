@@ -1,0 +1,3 @@
+# Windows agent: Linux service roles not applicable.
+# agent_services intentionally empty.
+agent_services: []

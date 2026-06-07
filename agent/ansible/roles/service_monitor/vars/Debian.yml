@@ -1,0 +1,2 @@
+svc_pkg: prometheus-node-exporter
+svc_name: prometheus-node-exporter

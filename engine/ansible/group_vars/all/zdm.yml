@@ -1,0 +1,16 @@
+# ZDM (회사 제공 실행파일) 배포 설정
+zdm_default_ip: "192.168.3.94"
+zdm_default_user: "admin@zconverter.com"
+
+# ZDM 패키지 — task.install 의 download.url 조립에 사용
+# 최종 URL = http://{zdm_default_ip}{zdm_package_path}
+# tar 추출 후 zdm_package_script 실행
+zdm_package_path: "/download/ZConverter_CloudSource_Setup_Linux.tar.gz"
+zdm_package_script: "zconverter_install_source/install.sh"
+
+# ZDM 메타 조회 timeout (HTTP HEAD + GET)
+zdm_meta_connect_timeout_sec: "5.0"
+zdm_meta_total_timeout_sec: "120.0"
+
+# ETag 기반 sha256 cache TTL (Redis)
+redis_ttl_zdm_package_sha256: "21600"

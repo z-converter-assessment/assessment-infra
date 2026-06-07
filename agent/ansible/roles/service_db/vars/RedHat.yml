@@ -1,0 +1,3 @@
+svc_pkg: postgresql-server
+svc_name: postgresql
+pg_needs_initdb: true

@@ -1,0 +1,7 @@
+# ubuntu family — debian과 동일 패키지 사용
+pkg_postgres: postgresql
+pkg_redis: redis-server
+pg_service: postgresql
+redis_service: redis-server
+pg_conf_dir_glob: /etc/postgresql/*/main
+pg_hba_path_glob: /etc/postgresql/*/main/pg_hba.conf

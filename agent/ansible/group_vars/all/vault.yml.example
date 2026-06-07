@@ -1,0 +1,12 @@
+# Agent가 소비하는 vault 변수 카탈로그 (문서용).
+#
+# 실제 vault.yml 은 engine/ansible/group_vars/all/vault.yml 을 가리키는 symlink —
+# 별도 파일을 만들지 말 것. 값 갱신은 engine 측 vault.yml 에서만 한다.
+#
+# 사용처: agent_env role의 agent.env.j2 — agent가 engine MQ에 AMQP 접속.
+# 환경변수 키 카탈로그: docs/operations/env-agent.md
+
+# ── RabbitMQ (engine vault에서 그대로 가져옴) ─────────────────────
+vault_mq_vhost: assessment
+vault_mq_user: assessment
+vault_mq_password: CHANGEME

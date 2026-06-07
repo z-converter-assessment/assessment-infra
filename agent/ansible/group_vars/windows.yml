@@ -1,0 +1,17 @@
+# Windows agent — WinRM (HTTP, Basic auth)
+# cloudbase-init user_data로 Administrator 비밀번호가 사전 주입된 VM 전제.
+
+ansible_connection: winrm
+ansible_port: 5985
+ansible_winrm_transport: basic
+ansible_winrm_server_cert_validation: ignore
+ansible_user: Administrator
+ansible_password: "{{ vault_windows_admin_password }}"
+
+# 바이너리 경로 / 서비스명 (Linux 기본값 override)
+agent_binary_dest: 'C:\Program Files\AssessmentAgent\assessment-agent.exe'
+agent_binary_dir: 'C:\Program Files\AssessmentAgent'
+agent_binary_filename: assessment-agent.exe
+agent_service_name: AssessmentAgent
+agent_binary_fetch_mode: local_file
+agent_binary_verify_checksum: false

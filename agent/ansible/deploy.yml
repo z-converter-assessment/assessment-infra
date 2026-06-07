@@ -1,0 +1,15 @@
+- name: Deploy assessment-agent (Linux)
+  hosts: linux
+  become: true
+  roles:
+    - common
+    - agent_binary
+    - agent_env
+    - agent_service
+
+- name: Deploy assessment-agent (Windows)
+  hosts: windows
+  roles:
+    - agent_binary
+    - agent_env
+    - agent_service

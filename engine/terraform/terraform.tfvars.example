@@ -1,0 +1,31 @@
+# clouds.yaml entry 이름
+cloud_name = "openstack"
+
+# ── Horizon 수동 생성 자원 이름 ───────────────────────────────────
+# Horizon → Network → Networks 에서 확인
+network_name       = "zconverter-private-net"
+engine_subnet_name = "assessment-engine"
+agent_subnet_name  = "target-vms"
+
+# openstack network list --external 로 확인
+external_network_name = "TODO"
+
+# 기존 bastion VM에 적용된 SG 이름
+# openstack server show engine-main -f json | jq '.security_groups'
+bastion_sg_name = "TODO"
+
+# engine-vm 8000 포트 허용 범위 — 폐쇄망이면 0.0.0.0/0 유지
+internal_cidr = "0.0.0.0/0"
+
+# ── 이미지 · keypair ──────────────────────────────────────────────
+image_name   = "debian13_x64_uefi_3G"
+keypair_name = "engine-key"
+
+# ── Flavor ────────────────────────────────────────────────────────
+# engine-vm: api·consumer·postgres·rabbitmq·redis 전체 호스트 — 최소 4 vCPU / 8 GB 권장
+# ai-vm: Ollama 최경량 모델 + diagnostic worker (4 vCPU / 8 GB / 100 GB disk)
+#
+# openstack flavor list 로 확인 후 본 환경의 실제 flavor 이름 매핑
+
+flavor_engine = "c4_m8_r50"  # 4 vCPU / 8 GB 이상 권장
+flavor_ai     = "zdm"        # ZDM 플레이버 — 4 vCPU / 8 GB / 100 GB

@@ -1,0 +1,22 @@
+ansible_user: debian
+ansible_ssh_private_key_file: ~/.ssh/engine-key.pem
+
+# Python (Debian 13 Trixie 기본 Python 3.13)
+python_version: "3.13"
+
+# Cinder 볼륨 디바이스 — db 먼저 attach → /dev/vdb, mq 두 번째 → /dev/vdc
+db_volume_device: /dev/vdb
+mq_volume_device: /dev/vdc
+
+# 볼륨 마운트 경로 (OpenStack 검증 환경·현장 appliance 공통)
+db_mount_path: /mnt/pgdata
+mq_mount_path: /mnt/mqdata
+
+# Docker Compose 작업 디렉토리
+compose_dir: /opt/engine-compose
+
+# App (ai-vm 전용 — diagnostic worker systemd 서비스용)
+app_user: assessment
+app_group: assessment
+app_dir: /opt/assessment
+app_venv: "{{ app_dir }}/venv"

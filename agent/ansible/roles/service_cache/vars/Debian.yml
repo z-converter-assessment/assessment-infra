@@ -1,0 +1,2 @@
+svc_pkg: redis-server
+svc_name: redis-server

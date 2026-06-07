@@ -1,0 +1,2 @@
+svc_pkg: golang-github-prometheus-node-exporter
+svc_name: node_exporter
