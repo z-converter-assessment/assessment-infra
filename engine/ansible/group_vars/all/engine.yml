@@ -3,7 +3,8 @@
 engine_version: "0.1.1"
 
 # GitHub 릴리즈 다운로드 베이스 URL
-engine_release_base_url: "https://github.com/z-converter-assessment/assessment-engine/releases/download/{{ engine_version }}"
+# 릴리즈 태그는 v 접두사 사용(v0.3.1)이나 engine_version·wheel 파일명은 v 없음(0.3.1) — URL에서만 v 부여
+engine_release_base_url: "https://github.com/z-converter-assessment/assessment-engine/releases/download/v{{ engine_version }}"
 
 # ── 운영 모드 마커 ────────────────────────────────────────────────
 engine_app_env: "production"
