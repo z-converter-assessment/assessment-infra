@@ -8,8 +8,10 @@ ollama_port: 11434
 
 # diagnostic-worker → Ollama 접속 URL
 # engine 코드가 OLLAMA_BASE_URL 단일 키만 read (env-audit Critical #1).
-# 같은 VM이므로 loopback. 데몬이 0.0.0.0 listen이라도 클라이언트는 127.0.0.1 접속.
-ollama_base_url: "http://127.0.0.1:{{ ollama_port }}"
+# diagnostic-worker는 engine VM의 compose 스택에서 실행되므로(ADR-0010) AI VM에
+# 원격 접속한다. engine_compose .env의 OLLAMA_BASE_URL이 이 값을 참조 — ai-vm 사설 IP를
+# 가리켜야 함(Ollama 데몬 ollama_host=0.0.0.0 listen이므로 외부 IP 접속 허용).
+ollama_base_url: "http://{{ hostvars['ai-vm'].ansible_host }}:{{ ollama_port }}"
 
 # Ollama install script — bastion에서 사전 다운로드 후 files/에 복사
 # 폐쇄망: VM에서 https://ollama.com 직접 접근 불가하므로 사전 배포 필요
