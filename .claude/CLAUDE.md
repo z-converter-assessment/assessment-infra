@@ -140,6 +140,7 @@ VM 책임·spec 테이블·SG 매트릭스: `docs/architecture/components.md` / 
 - Application Credential: clouds.yaml에 ID/Secret. member role scope 충분. secret 1회 노출 후 재확인 불가
 - bootstrap 패턴: 첫 ops host(bastion) 1대만 수동 생성, 이후 IaC
 - network·subnet·router·keypair는 Horizon 수동 생성 후 Terraform `data`/`variable`로 참조 — Terraform으로 재생성 금지
+  - **예외(ADR-0013)**: agent 테스트 전용 **내부 네트워크/서브넷**은 별도 stack `agent/terraform/network/`에서 Terraform 생성 허용(router/external gw 없는 internal-only). primary `agent-subnet`+라우터·keypair는 여전히 Horizon
 
 ### SSH 운영
 

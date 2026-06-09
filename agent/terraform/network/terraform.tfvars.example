@@ -1,0 +1,14 @@
+cloud_name = "openstack"
+
+# ADR-0013: 테스트 전용 내부 네트워크/서브넷.
+# 적용 순서: 본 stack을 먼저 apply → 그 다음 agent 인스턴스 stack(agent/terraform).
+test_networks = {
+  # 레거시 OS(centos6·win2008·ubuntu18) 그룹핑용 전용 서브넷.
+  "agent-legacy" = {
+    cidr = "10.0.30.0/24"
+  }
+
+  # 토폴로지 시각화 검증용 추가 네트워크 예시(필요 시 주석 해제).
+  # "agent-topo-a" = { cidr = "10.0.31.0/24" }
+  # "agent-topo-b" = { cidr = "10.0.32.0/24" }
+}
