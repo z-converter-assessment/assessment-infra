@@ -107,21 +107,28 @@
     state: present
   when: compose_mount_cinder | default(true)
 
-# /dev/vdb(db 볼륨)를 XFS로 포맷 — 새 Cinder 볼륨은 파일시스템이 없어 마운트 불가. 이미 포맷된 경우 creates 조건으로 스킵
-- name: format db volume (xfs, skip if already formatted)
-  command: mkfs.xfs {{ db_volume_device }}
-  args:
-    creates: "{{ db_mount_path }}/.xfs_formatted"
+# 볼륨에 파일시스템이 이미 있는지 blkid로 검사 — 재배포(동일 VM) 시 mkfs 재실행을 막는다.
+# 과거 creates 센티넬(.xfs_formatted)은 role이 만든 적 없어 무력 → 매 run mkfs 재실행되어
+# "contains a mounted filesystem" 오류. -f 강제포맷은 데이터 파괴라 금지, 미포맷일 때만 포맷.
+- name: probe db/mq volume filesystem
+  command: "blkid -s TYPE -o value {{ item }}"
+  register: vol_fs_probe
+  changed_when: false
+  failed_when: false
+  loop:
+    - "{{ db_volume_device }}"
+    - "{{ mq_volume_device }}"
   when: compose_mount_cinder | default(true)
-  register: db_format
 
-# /dev/vdc(mq 볼륨)를 XFS로 포맷 — 위와 동일 이유
-- name: format mq volume (xfs, skip if already formatted)
-  command: mkfs.xfs {{ mq_volume_device }}
-  args:
-    creates: "{{ mq_mount_path }}/.xfs_formatted"
-  when: compose_mount_cinder | default(true)
-  register: mq_format
+# 새 Cinder 볼륨(파일시스템 없음)만 XFS로 포맷. 이미 포맷된 볼륨은 stdout에 'xfs' 등이 잡혀 스킵.
+- name: format cinder volumes (xfs) — 미포맷일 때만
+  command: "mkfs.xfs {{ item.item }}"
+  loop: "{{ vol_fs_probe.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item | default('') }}"
+  when:
+    - compose_mount_cinder | default(true)
+    - item.stdout | default('') | trim == ''
 
 # postgres·rabbitmq 데이터를 보관할 마운트 포인트 디렉토리 생성 — 없으면 mount 태스크 실패
 - name: create mount points
