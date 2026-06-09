@@ -79,16 +79,42 @@
   when: ansible_os_family == 'Debian'
   ignore_errors: true
 
-- name: Install ca-certificates (Debian)
+# agent 런타임이 inventory 수집에 사용. 없으면 폴백되지만 일부 필드 null.
+# (lsblk=util-linux. dbus-uuidgen은 패키지명이 배포판마다 달라 base image·machine-id에 의존)
+- name: Install base runtime dependencies (Debian)
   ansible.builtin.apt:
-    name: ca-certificates
+    name:
+      - ca-certificates
+      - curl
+      - util-linux
     state: present
   when: ansible_os_family == 'Debian'
 
-- name: Install ca-certificates (RedHat)
+- name: Install base runtime dependencies (RedHat)
   ansible.builtin.dnf:
-    name: ca-certificates
+    name:
+      - ca-certificates
+      - curl
+      - util-linux
     state: present
+  when: ansible_os_family == 'RedHat'
+
+# ── SELinux permissive (RHEL 계열만) ──────────────────────────────
+# RHEL 계열은 SELinux enforcing 기본이라, agent 가 런타임에 받은 ZDM install.sh 를
+# 비표준 컨텍스트(var_lib_t/tmp_t)에서 실행하려다 AVC denial 로 실패한다(ADR-0012).
+# Ubuntu(AppArmor·커스텀 프로파일 없음 → 사실상 unconfined)와 동작을 일치시키기 위해
+# 테스트 플릿에서는 permissive 로 내린다. enforcing→permissive 전환은 재부팅 불필요.
+
+- name: Install SELinux python bindings (RedHat)
+  ansible.builtin.dnf:
+    name: python3-libselinux
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Set SELinux to permissive (RedHat)
+  ansible.posix.selinux:
+    policy: targeted
+    state: permissive
   when: ansible_os_family == 'RedHat'
 
 - name: Create assessment-agent group
@@ -114,6 +140,19 @@
     owner: "{{ agent_user }}"
     group: "{{ agent_group }}"
     mode: "0750"
+
+# worker가 result 파일·idempotency 마커를 쓰는 서브디렉터리.
+# worker self-create를 보장 못 하므로 선생성 (WORKER_STATE_DIR 기본 /var/lib/agent-worker).
+- name: Create agent worker subdirectories
+  ansible.builtin.file:
+    path: "{{ agent_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0750"
+  loop:
+    - results
+    - done
 
 - name: Grant NOPASSWD sudo to assessment-agent
   ansible.builtin.copy:
