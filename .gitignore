@@ -19,6 +19,9 @@ agent/ansible/files/binaries/assessment-agent-linux
 agent/ansible/files/binaries/assessment-agent.exe
 engine/ansible/files/ollama/ollama-models.tar.gz
 
+# 로컬 보존 문서 (commit 안 함)
+docs/operations/engine-contract-audit-v0.4.1.md
+
 # OS
 .DS_Store
 
