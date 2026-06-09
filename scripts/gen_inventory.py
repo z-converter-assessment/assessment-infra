@@ -13,6 +13,7 @@
 선결 조건:
     engine/terraform과 agent/terraform 모두 `terraform apply` 완료 후 호출.
 """
+import argparse
 import json
 import subprocess
 import sys
@@ -156,21 +157,30 @@ def gen_agent_inventory(agent_out: dict, engine_out: dict) -> str:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="engine·agent inventory 생성")
+    parser.add_argument(
+        "--scope",
+        choices=["all", "engine", "agent"],
+        default="all",
+        help="생성 대상 (기본 all). engine 배포 시 --scope engine으로 "
+        "agent terraform state 의존을 제거한다.",
+    )
+    args = parser.parse_args()
+
+    # engine output은 두 inventory 모두에서 필요 (agent → MQ 접속용 포함)
     engine_out = tf_output(ENGINE_TF)
-    agent_out = tf_output(AGENT_TF)
 
-    engine_inv = gen_engine_inventory(engine_out)
-    agent_inv = gen_agent_inventory(agent_out, engine_out)
+    if args.scope in ("all", "engine"):
+        ENGINE_INV.write_text(gen_engine_inventory(engine_out))
+        print(f"OK  {ENGINE_INV.relative_to(REPO_ROOT)}  (2 hosts)")
 
-    ENGINE_INV.write_text(engine_inv)
-    AGENT_INV.write_text(agent_inv)
-
-    n_engine = 2  # Engine·AI
-    n_agent_linux = agent_out.get("agent_total_count", {}).get("value", 0)
-    win = agent_out.get("windows_vm", {}).get("value")
-    n_agent = n_agent_linux + (1 if win and win.get("ip") else 0)
-    print(f"OK  {ENGINE_INV.relative_to(REPO_ROOT)}  ({n_engine} hosts)")
-    print(f"OK  {AGENT_INV.relative_to(REPO_ROOT)}   ({n_agent} hosts)")
+    if args.scope in ("all", "agent"):
+        agent_out = tf_output(AGENT_TF)
+        AGENT_INV.write_text(gen_agent_inventory(agent_out, engine_out))
+        n_agent_linux = agent_out.get("agent_total_count", {}).get("value", 0)
+        win = agent_out.get("windows_vm", {}).get("value")
+        n_agent = n_agent_linux + (1 if win and win.get("ip") else 0)
+        print(f"OK  {AGENT_INV.relative_to(REPO_ROOT)}   ({n_agent} hosts)")
 
 
 if __name__ == "__main__":

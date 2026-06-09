@@ -41,7 +41,7 @@ jobs:
           terraform apply -auto-approve tfplan
 
       - name: generate inventory
-        run: python3 scripts/gen_inventory.py
+        run: python3 scripts/gen_inventory.py --scope engine
 
       - name: ansible-playbook engine
         run: |
