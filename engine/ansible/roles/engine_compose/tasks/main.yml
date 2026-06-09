@@ -154,6 +154,20 @@
     state: mounted
   when: compose_mount_cinder | default(true)
 
+# PGDATA_HOST(host bind) 소스를 컨테이너 postgres uid 소유로 미리 생성.
+# timescaledb-ha 는 initdb 를 postgres(uid 1000)로 실행하는데, bind 소스가 root 소유면
+# "could not change permissions ... Operation not permitted" 로 init 실패 → postgres unhealthy →
+# migrate·web·consumer·diagnostic-worker 전부 dependency 실패. (named volume 은 docker 가 자동 chown 하나
+# host bind 는 수동 필요. rabbitmq 는 컨테이너가 root 로 시작해 자체 chown 하므로 MQ_DATA_HOST 는 불요.)
+- name: ensure PGDATA_HOST owned by container postgres uid
+  file:
+    path: "{{ db_mount_path }}/pgdata"
+    state: directory
+    owner: "{{ postgres_container_uid }}"
+    group: "{{ postgres_container_uid }}"
+    mode: "0700"
+  when: compose_mount_cinder | default(true)
+
 # ── Docker 이미지 로그인·pull ────────────────────────────────────────
 
 # GHCR(GitHub Container Registry) 인증 — private 이미지 접근 시 필요. ghcr_token 미전달 시 스킵(public 이미지만 있는 경우)

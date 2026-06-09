@@ -1,13 +1,16 @@
 # assessment-engine release 버전
 # GitHub Actions 자동 배포 시 --extra-vars "engine_version=X.Y.Z"로 override됨
-engine_version: "0.1.1"
+# v0.4.0부터 prod-safe base compose(build: 없음·GHCR 핀). 0.3.1 이하는 dev compose라 폐쇄망 배포 불가.
+engine_version: "0.5.0"
 
 # GitHub 릴리즈 다운로드 베이스 URL
 # 릴리즈 태그는 v 접두사 사용(v0.3.1)이나 engine_version·wheel 파일명은 v 없음(0.3.1) — URL에서만 v 부여
 engine_release_base_url: "https://github.com/z-converter-assessment/assessment-engine/releases/download/v{{ engine_version }}"
 
 # ── 운영 모드 마커 ────────────────────────────────────────────────
-engine_app_env: "production"
+# 엔진 _validate_prod_* fail-fast validator는 값이 정확히 "prod"일 때만 발동.
+# "production"이면 prod 운영 동작·weak secret 거부 안전장치 모두 미작동 (engine config.py).
+engine_app_env: "prod"
 engine_log_format: "json"
 
 # ── MQ routing 계약 (agent ↔ engine 양쪽 동일 값 의무) ─────────────
@@ -19,8 +22,20 @@ engine_mq_routing_key_error: "server.error"
 engine_mq_task_exchange: "assessment.tasks"
 engine_mq_task_result_key: "task.result"
 engine_mq_task_queue_prefix: "agent.tasks"
+engine_mq_task_install_key_prefix: "task.install"
+engine_mq_worker_result_queue: "worker.result"
 
 # ── diagnostic 라우팅 (engine 내부 — api ↔ ai) ─────────────────────
 engine_diagnostic_routing_key: "diagnostic.request"
 engine_diagnostic_queue_ttl_ms: "86400000"
 engine_diagnostic_queue_max_len: "100000"
+
+# ── web 전용 ──────────────────────────────────────────────────────
+# install.sh wall-clock timeout (초) — web이 agent에 전달 (env.example INSTALL_TIMEOUT_SEC)
+engine_install_timeout_sec: "600"
+
+# ── pgAdmin (v0.5.0 base compose 신규 서비스) ─────────────────────
+# DB 관리 UI. host {{ engine_pgadmin_port }} 노출 — SG가 외부 차단해도 engine-subnet 내부엔 도달.
+# 이메일은 유효 TLD 필수(.local 등 예약 TLD는 pgAdmin이 거부). 비밀번호는 vault_pgadmin_password(강 secret).
+engine_pgadmin_email: "assessment@zconverter.com"
+engine_pgadmin_port: "5050"

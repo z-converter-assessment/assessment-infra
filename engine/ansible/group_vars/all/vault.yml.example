@@ -29,3 +29,8 @@ vault_mq_password: CHANGEME
 # api·consumer가 본 값을 SECRET_KEY로 주입 (session/JWT 서명).
 # prod 권장: openssl rand -base64 32
 vault_app_secret_key: CHANGEME
+
+# ── pgAdmin (v0.5.0 base compose) ──────────────────────────────────
+# pgadmin 서비스가 본 값을 PGADMIN_DEFAULT_PASSWORD로 사용. pgadmin은 APP_ENV fail-fast 게이트
+# 대상이 아니므로 weak여도 기동됨 → 반드시 강 secret. prod 권장: openssl rand -hex 24
+vault_pgadmin_password: CHANGEME

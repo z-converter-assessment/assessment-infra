@@ -36,7 +36,7 @@
 | `docs/architecture/overview.md` | 무엇을 만드는가? 외부 의존(assessment-engine repo)은? |
 | `docs/architecture/topology.md` | 어디에 배치되어 있는가? (네트워크·VM·SG 매트릭스) |
 | `docs/architecture/runtime.md` | 실행 시 어떻게 흐르는가? (메시지·env·배포 흐름) |
-| `docs/architecture/components.md` | 각 VM의 책임·spec·인터페이스는? |
+| `docs/architecture/components.md` | 각 VM·compose 서비스의 책임·spec·인터페이스는? |
 | `docs/architecture/agent-publish.md` | agent CM2 모델·collector·worker connection 분리 메커니즘 |
 | `docs/setup.md` | 초기 구축 단계별 가이드 (첫 bastion·OpenStack 부트스트랩) |
 | `docs/operations/deploy-walkthrough.md` | 반복 배포 시나리오 (vault → engine → agent 순서) |
@@ -77,36 +77,34 @@ assessment-infra/
 │   │   ├── test.tf · outputs.tf · terraform.tfvars.example
 │   └── ansible/
 │       ├── ansible.cfg · requirements.yml · inventory.yml (gitignore)
-│       ├── group_vars/all/{common,engine,zdm}.yml
-│       ├── files/wheels/                 # bastion에서 다운로드한 wheel
-│       ├── playbook-{db,mq,cache,api,consumer}.yml
-│       ├── playbook-ai.yml               # (TBD) Ollama 설치
-│       └── roles/{app,postgres,rabbitmq,redis,ollama(TBD)}
+│       ├── inventory.localhost.yml        # 현장 appliance (connection=local)
+│       ├── group_vars/all/{common,engine,ai,zdm,vault}.yml
+│       ├── playbook-engine.yml            # compose stack 배포
+│       ├── playbook-ai.yml                # Ollama + diagnostic-worker
+│       ├── playbook-field.yml             # 현장 appliance 로컬 적용
+│       └── roles/{engine_compose, ollama, app(레거시)}
 └── agent/                                # assessment-agent 테스트 환경 (30대+)
     ├── terraform/
     │   ├── versions.tf · providers.tf · variables.tf · data.tf
-    │   ├── instances.tf · outputs.tf · terraform.tfvars.example
-    └── ansible/
+    │   ├── instances.tf · windows.tf · outputs.tf · terraform.tfvars.example
+    └── ansible/                          # (compose와 별개로 fleet refactor 진행 — 트리는 실파일 기준)
         ├── ansible.cfg · inventory.yml (gitignore)
-        ├── group_vars/all/common.yml
-        ├── files/binaries/{assessment-agent-linux, assessment-agent.exe}
-        ├── playbook-agent.yml
-        ├── playbook-local-services.yml   # (TBD) PostgreSQL·Redis 로컬 설치
-        └── roles/{agent, postgres-local(TBD), redis-local(TBD)}
+        ├── group_vars/all/{vars,vault}.yml
+        ├── site.yml · deploy.yml · services.yml · health-check.yml · noise.yml
+        └── roles/{agent_binary, agent_env, agent_service, common,
+                   service_{db,cache,mq,web,app,container,monitor}, noise·noise_*}
 ```
 
 ## 아키텍처 요약
 
 상세는 `docs/architecture/`. 여기는 작업 시 자주 참조하는 핵심만.
 
-- **VM 8종**: engine 6종(API·MQ·Cache·DB·Consumer·AI) + agent 플릿(30대+·OS 8종+) + bastion 1
+- **VM**: engine-vm 1대(docker compose: api·consumer·postgres·rabbitmq·redis) + ai-vm 1대(Ollama + diagnostic-worker) + agent 플릿(30대+·OS 8종+) + bastion 1
 - **네트워크**: engine-subnet `10.0.10.0/24` / agent-subnet `10.0.20.0/24` — Horizon 수동
-- **FIP**: API VM + Bastion만. 나머지 사설 IP only
-- **파이프라인**: Horizon → Terraform → Ansible
-- **배포 모델 전환 진행 중**:
-  - 현행: Docker 없음 + 컴포넌트당 VM 분리 + bastion 수동 실행 (ADR-0003 — Deprecated)
-  - 목표: 단일 노드 + docker compose (ADR-0010) + bastion self-hosted runner 자동화 (ADR-0011). 검증 환경(OpenStack)과 현장 appliance가 같은 compose 정의 공유
-  - terraform/ansible refactor 완료 시점에 위 "VM 8종"·"파이프라인" 라인과 함께 일괄 갱신
+- **FIP**: engine-vm(API:8000) + Bastion만. 나머지 사설 IP only
+- **파이프라인**: Horizon → Terraform → Ansible. release 발행 시 bastion self-hosted runner가 `repository_dispatch`로 자동 실행 (ADR-0011)
+- **배포 모델**: 단일 노드 + docker compose (ADR-0010 — ADR-0003 직접설치 모델 대체·Deprecated). 검증 환경(OpenStack)과 현장 appliance가 **같은 compose 정의 공유** — 현장은 마운트 소스만 host disk로 교체
+- **deploy 주의**: 워크플로는 **main HEAD에서 실행** — 배포 로직 수정은 dispatch 전에 main에 머지돼야 반영됨
 
 VM 책임·spec 테이블·SG 매트릭스: `docs/architecture/components.md` / `topology.md`.
 
@@ -123,16 +121,16 @@ VM 책임·spec 테이블·SG 매트릭스: `docs/architecture/components.md` / 
 
 ### 환경 제약 (폐쇄망)
 
-- `ppa1.rabbitmq.com` (Cloudsmith) 차단 → RabbitMQ는 Debian main repo (ADR-0004)
-- TimescaleDB는 `postgresql-16 >= 16.14` 요구 → PGDG repo 필수 (`trixie-pgdg`)
-- VM은 외부 인터넷 직접 접근 불가 → wheel·바이너리는 bastion에서 다운로드 후 Ansible files 디렉토리에 사전 복사
+- VM은 외부 인터넷 직접 접근 불가 → engine은 **bastion이 release의 `docker-compose.yml`·이미지를 대신 받아** 전달(`delegate_to: localhost`), agent 바이너리는 bastion에서 받아 files 디렉토리에 사전 복사
+- engine 컴포넌트는 **공식 컨테이너 이미지**(`postgres:16`+timescaledb, `rabbitmq:3-management`, `redis:7`) 사용 — 구모델 직접설치 제약(RabbitMQ Cloudsmith 차단 ADR-0004, TimescaleDB PGDG repo)은 compose 전환으로 해소
+- (참고) ADR-0004·PGDG 등 직접설치 관련 제약은 ADR-0003 모델 한정 — 현재 engine엔 미적용, agent 로컬 서비스(직접 apt 설치)엔 여전히 유효 가능
 
 ### assessment-engine 패키지 구조 (배포 시 참고)
 
 - API 엔트리포인트: `assessment_engine.web.main:app` (uvicorn ExecStart)
 - Worker 엔트리포인트: `python -m assessment_engine.consumer` (`__main__.py` 방식, console script 없음)
-- Alembic: `_alembic.ini`·`_migrations/` (언더스코어) — `migrations/` symlink 필요
-- wheel 파일명: `assessment_engine-{version}-py3-none-any.whl` (`v` 접두사 없음)
+- Alembic: compose `migrate` init-container가 `upgrade head` 1회 실행 (api·consumer는 `depends_on`으로 대기). 구모델 playbook-api alembic task 폐기
+- release 자산: `docker-compose.yml`·`env.example`·GHCR 이미지·wheel(`assessment_engine-{version}-py3-none-any.whl`)·SHA256SUMS. **release 태그는 `v` 접두사**(`v0.4.1`) — compose 다운로드 URL에 `v{{ engine_version }}` 필수
 - 환경변수 키: `docs/operations/env-engine.md` 참조
 
 ### 인증·운영
@@ -157,13 +155,18 @@ VM 책임·spec 테이블·SG 매트릭스: `docs/architecture/components.md` / 
 - Security Group = 하이퍼바이저 측 방화벽. OS firewall과 AND 게이트
 - Tenant = Project. Application Credential의 scope = 본인 project
 
-## wheel 배포 — Option A
+## engine 배포 — compose (ADR-0010·0011)
 
-1. bastion에서 GitHub Releases의 wheel 다운로드 → `engine/ansible/files/wheels/`
-2. `engine/ansible/group_vars/all/engine.yml`의 `engine_version` 갱신
-3. `playbook-api.yml` 또는 `playbook-consumer.yml` 실행
+1. assessment-engine release(`v{version}`)에 `docker-compose.yml`·`env.example`·GHCR 이미지 게시
+2. `engine/ansible/group_vars/all/engine.yml`의 `engine_version` 갱신 (또는 dispatch payload로 override)
+3. `playbook-engine.yml` 실행 → bastion이 compose 정의 받아 engine-vm 전달 → `docker compose pull` → `up -d`
 
-상세 흐름·alembic 단계·agent 바이너리 배포: `docs/architecture/runtime.md`.
+수동 재트리거:
+```
+gh api repos/:owner/:repo/dispatches -f event_type=engine-release -F client_payload[engine_version]=X.Y.Z
+```
+
+상세 흐름·alembic·agent 바이너리 배포: `docs/architecture/runtime.md`.
 
 ## 운영 정책
 
