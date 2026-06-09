@@ -64,7 +64,8 @@ F2는 고객 보안 정책 의존도가 높고, F3는 현장 노드를 GitHub와
 - **systemd unit**: `actions.runner.<org>-<repo>.<name>.service` (공식 `svc.sh install` 결과물)
 - **권한**: runner는 bastion `debian` 사용자로 실행 — terraform·ansible·SSH key·vault password·clouds.yaml 접근 권한이 이미 있음
 - **트리거**: assessment-engine repo에서 release 발행 시 `repository_dispatch`로 본 repo의 두 workflow(`deploy-engine`, `build-field-bundle`)를 모두 트리거. agent는 별도 `deploy-agent` / 번들에 동봉
-- **secret 경계**: GitHub Actions secret은 배포용으로 사용하지 않음. 모든 secret은 bastion 로컬(`~/.vault-pass`, `~/.ssh/engine-key.pem`, `~/.config/openstack/clouds.yaml`) 그대로. workflow는 파일 경로만 참조
+- **secret 경계**: 배포 secret은 원칙적으로 bastion 로컬(`~/.vault-pass`, `~/.ssh/engine-key.pem`, `~/.config/openstack/clouds.yaml`)에 두고 workflow는 **파일 경로만 참조**한다.
+  - **예외 — `terraform.tfvars`**: 이 파일은 gitignore 대상이라 checkout으로 확보되지 않고, `vault.yml`처럼 암호화 commit하기도 어렵다(terraform이 평문 변수 파일을 요구). 따라서 `ENGINE_TFVARS` **GitHub Environment secret**(`openstack-staging` scope)으로 보관하고 `write terraform.tfvars` step에서 런타임 생성한다. 이 한 값만 bastion 경계를 벗어나 GitHub secret store에 보관됨을 **의도적으로 허용**한다. 근거: tfvars는 OpenStack provisioning 파라미터 수준이고(앱 deep secret은 `vault.yml`에 잔류), Environment scope로 required-reviewer 게이트와 GitHub 감사 로그를 함께 얻는다. 트레이드오프는 아래 "핵심 우려와 대응" 참조.
 
 ### Workflow 1 — `deploy-engine.yml` (검증 환경 자동 적용)
 
@@ -161,6 +162,10 @@ bundle/
 F1은 hotfix 지연이 단점이지만, 본 시스템은 2개월 수집·1회 보고서 산출 모델이라 hotfix 빈도가 낮을 것으로 추정. F2/F3 도입은 hotfix 빈도가 사업적 비용이 되는 시점에 후속 결정으로 미룬다.
 
 핵심 우려와 대응:
+- **secret 경계 이원화 (`terraform.tfvars`만 GitHub secret)** → 두 보관 방식의 트레이드오프를 의식적으로 수용:
+  - *bastion 로컬 파일 (vault·ssh-key·clouds.yaml)*: secret이 GitHub에 절대 도달하지 않음(인입 표면 0), 폐쇄망 가정과 정합. 대신 runner 호스트마다 수동 배치 필요, GitHub UI에 감사 흔적 없음, 호스트 분실 시 단일 실패점.
+  - *GitHub Environment secret (`ENGINE_TFVARS`)*: GitHub UI에서 편집·로테이션·Environment scope 게이트(required reviewer)·접근 감사 로그를 얻고 새 runner도 즉시 사용. 대신 평문 값이 GitHub 암호화 store에 보관되어 "모든 secret bastion 로컬" 원칙을 벗어나고, GitHub 측 침해 시 노출 면이 생김.
+  - 적용 기준: **deep app secret(DB·MQ 자격 등)은 `vault.yml`(암호화 commit) + `~/.vault-pass`(로컬)** 경로 유지, **terraform provisioning 변수만 GitHub secret** 허용. tfvars에 deep secret을 넣지 않는 것을 전제로 함 — 위반 시 본 결정 재검토.
 - **bastion이 빌드/배포/ops를 모두 짊어짐** → bastion 자체의 백업·복구 절차를 우선 정비 필요 (별도 작업). 본 ADR 범위 밖
 - **runner 프로세스가 임의 코드 실행 경로** → repo write 권한자만 workflow 변경 가능. `workflow_dispatch` 승인자 분리. `pull_request` 트리거에서는 secret 차단
 - **release 태그와 infra 태그 동기화** → workflow가 호출 시 `engine_version` input을 받아 in-memory로 ansible extra-vars 주입, 파일 commit 없음. 의도적으로 ansible variable 파일을 SoT로 두지 않음
