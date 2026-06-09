@@ -43,7 +43,7 @@
 | `docs/operations/env-engine.md` | engine VM 환경변수 카탈로그 |
 | `docs/operations/agent-test-environment.md` | agent 테스트 플릿 구성·환경변수 주입 경로·주입 변수·실행 권한 |
 | `docs/operations/env-agent.md` | (→ agent-test-environment.md로 통합된 포인터) |
-| `docs/operations/env-audit.md` | engine·agent repo contract 대비 inject 격차 (수정 완료 시 폐기) |
+| `docs/operations/env-audit.md` | (Deprecated — 대부분 해소, 잔여 항목만 추적) |
 | `docs/operations/troubleshooting.md` | 작업 중 문제 해결 |
 | `docs/operations/troubleshooting_CD.md` | CD 파이프라인(self-hosted runner) 오류·판단·조치·결과 기록 |
 | `docs/operations/release.md` | release artifact 출처 |
