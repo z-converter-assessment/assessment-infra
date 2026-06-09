@@ -44,6 +44,7 @@
 | `docs/operations/env-agent.md` | agent VM 환경변수 카탈로그 |
 | `docs/operations/env-audit.md` | engine·agent repo contract 대비 inject 격차 (수정 완료 시 폐기) |
 | `docs/operations/troubleshooting.md` | 작업 중 문제 해결 |
+| `docs/operations/troubleshooting_CD.md` | CD 파이프라인(self-hosted runner) 오류·판단·조치·결과 기록 |
 | `docs/operations/release.md` | release artifact 출처 |
 | `docs/adr/` | 의사결정 시점 로그 (0001~) |
 
