@@ -45,13 +45,13 @@
     - name: RABBITMQ_VHOST
       value: "{{ vault_mq_vhost | default('assessment') }}"
     - name: RABBITMQ_EXCHANGE
-      value: assessment
+      value: "{{ mq_exchange }}"
     - name: RABBITMQ_ROUTING_KEY_INVENTORY
-      value: server.inventory
+      value: "{{ mq_routing_key_inventory }}"
     - name: RABBITMQ_ROUTING_KEY_METRICS
-      value: server.metrics
+      value: "{{ mq_routing_key_metrics }}"
     - name: RABBITMQ_ROUTING_KEY_ERROR
-      value: server.error
+      value: "{{ mq_routing_key_error }}"
     - name: RABBITMQ_TLS_ENABLED
       value: "{{ rabbitmq_tls_enabled | string | lower }}"
     - name: WORKER_TASK_EXCHANGE
