@@ -50,6 +50,15 @@ jobs:
             --vault-password-file ~/.vault-pass \
             --extra-vars "engine_version=${{ github.event.client_payload.engine_version }} ghcr_token=${{ secrets.GITHUB_TOKEN }}"
 
+      # ollama 모델 tarball(~1.6GB)은 .gitignore라 checkout에 없고, checkout(clean)이
+      # 워크스페이스를 비우므로 bastion 영속 경로에서 매 run 복사한다. (vault/tfstate와 동일 패턴)
+      # 사전 준비: bastion에서 `ollama pull gemma2:2b` 후
+      #   tar czf /home/debian/ollama-artifacts/ollama-models.tar.gz -C /usr/share/ollama .ollama
+      - name: stage ollama model artifact (bastion-local)
+        run: |
+          cp /home/debian/ollama-artifacts/ollama-models.tar.gz \
+            engine/ansible/files/ollama/ollama-models.tar.gz
+
       - name: ansible-playbook ai
         run: |
           cd engine/ansible
