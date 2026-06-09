@@ -52,6 +52,26 @@
       value: server.metrics
     - name: RABBITMQ_ROUTING_KEY_ERROR
       value: server.error
+    - name: RABBITMQ_TLS_ENABLED
+      value: "{{ rabbitmq_tls_enabled | string | lower }}"
+    - name: WORKER_TASK_EXCHANGE
+      value: "{{ mq_task_exchange }}"
+    - name: WORKER_TASK_QUEUE_PREFIX
+      value: "{{ mq_task_queue_prefix }}"
+    - name: WORKER_TASK_RESULT_KEY
+      value: "{{ mq_task_result_key }}"
+    - name: WORKER_DOWNLOAD_ALLOWED_HOSTS
+      value: "{{ worker_download_allowed_hosts }}"
+    - name: AGENT_INTERVAL_SEC
+      value: "{{ agent_interval_sec | string }}"
+    - name: AGENT_INVENTORY_REFRESH_SEC
+      value: "{{ agent_inventory_refresh_sec | string }}"
+    - name: AGENT_DRAIN_GRACE_SEC
+      value: "{{ agent_drain_grace_sec | string }}"
+    - name: AGENT_DRAIN_TERM_SEC
+      value: "{{ agent_drain_term_sec | string }}"
+    - name: AGENT_DRAIN_PUBLISH_SEC
+      value: "{{ agent_drain_publish_sec | string }}"
   when: ansible_system == 'Win32NT'
   notify: restart AssessmentAgent
 
@@ -64,6 +84,10 @@
     - name: RABBITMQ_USER
       value: "{{ vault_mq_user }}"
     - name: RABBITMQ_PASS
+      value: "{{ vault_mq_password }}"
+    - name: RABBITMQ_WORKER_USER
+      value: "{{ vault_mq_user }}"
+    - name: RABBITMQ_WORKER_PASS
       value: "{{ vault_mq_password }}"
   when: ansible_system == 'Win32NT'
   no_log: true

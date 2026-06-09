@@ -35,6 +35,22 @@ mq_task_result_key: "task.result"
 # 값: ZDM 서버 host. engine/ansible/group_vars/all/zdm.yml 의 zdm_default_ip 와 동일 host 유지.
 worker_download_allowed_hosts: "192.168.3.94"
 
+# ── RabbitMQ TLS ──────────────────────────────────────────────────
+# engine은 plain 5672 노출(TLS 미사용)이므로 명시적으로 끈다.
+# agent 바이너리 기본이 TLS=true라, 미설정 시 plain 포트에서 핸드셰이크 실패.
+rabbitmq_tls_enabled: false
+
+# ── Agent 루프/worker 활성 ────────────────────────────────────────
+# 0이면 one-shot(worker도 비활성)이므로 양수 명시. (테스트 플릿 기본 주기)
+agent_interval_sec: 60
+agent_inventory_refresh_sec: 300
+
+# ── Drain 예산 ────────────────────────────────────────────────────
+# systemd TimeoutStopSec와 정합 필수 — unit이 (grace+term+publish+여유)로 산출.
+agent_drain_grace_sec: 600
+agent_drain_term_sec: 30
+agent_drain_publish_sec: 180
+
 # Service groups to install on this host.
 # Override per OS group in group_vars/<os_key>.yml or per host in host_vars/.
 # Available values: service_web, service_db, service_cache, service_mq,
