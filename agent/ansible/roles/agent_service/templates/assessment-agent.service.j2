@@ -13,6 +13,8 @@ EnvironmentFile={{ agent_env_dir }}/agent.env.local
 ExecStart={{ agent_binary_dest }}
 Restart=on-failure
 RestartSec=5
+# drain 예산(grace+term+publish) + 여유 90s. 미설정 시 systemd 기본 90s라 drain 중 SIGKILL.
+TimeoutStopSec={{ agent_drain_grace_sec + agent_drain_term_sec + agent_drain_publish_sec + 90 }}
 
 # hardening
 # NoNewPrivileges / CapabilityBoundingSet / AmbientCapabilities 는 의도적으로 비활성화 —
