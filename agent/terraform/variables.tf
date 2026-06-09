@@ -12,8 +12,23 @@ variable "network_name" {
 }
 
 variable "agent_subnet_name" {
-  description = "agent VM용 subnet 이름 (10.0.20.0/24)"
+  description = "agent VM용 subnet 이름 (10.0.20.0/24) — primary NIC(eth0, bastion SSH·MQ 경로)"
   type        = string
+}
+
+# ── 멀티 NIC 추가 네트워크 (패턴 A) ────────────────────────────────
+# 네트워크 시각화 기능 검증을 위해 각 agent를 여러 서브넷에 동시 소속시킨다.
+# 네트워크·서브넷은 Horizon에서 사전 생성하고 이름으로 참조 — 레포 정책상 Terraform이
+# network/subnet을 생성하지 않는다(data source 참조만).
+# 모든 agent(Linux 전체 + 활성 시 Windows)에 일괄 부착된다.
+# 키 = NIC 라벨(port 이름·output에 사용). 기본 {} → 비우면 기존 단일 NIC 동작 유지(무중단).
+variable "agent_extra_networks" {
+  description = "agent에 추가로 붙일 네트워크(멀티 NIC). 키=NIC 라벨, 값={network_name, subnet_name}"
+  type = map(object({
+    network_name = string
+    subnet_name  = string
+  }))
+  default = {}
 }
 
 variable "bastion_sg_name" {
@@ -98,6 +113,39 @@ variable "agent_os_map" {
       family     = "rhel"
       ssh_user   = "cloud-user"
       count      = 4
+    }
+  }
+}
+
+# ── 레거시 OS (지원 검증 + agent 개발자 컴파일/실행 환경 제공) ──────
+# primary NIC=agent-subnet(연결성), secondary NIC=agent-legacy(ADR-0013 그룹핑).
+# agent-legacy 서브넷은 network stack(agent/terraform/network)이 선행 생성해야 함.
+variable "agent_legacy_enabled" {
+  description = "레거시 OS(centos6·ubuntu18 + win2008) 인스턴스 활성화. agent-legacy 서브넷 선행 필요"
+  type        = bool
+  default     = true
+}
+
+variable "agent_legacy_os_map" {
+  description = "레거시 Linux OS 정의. 키=inventory OS group 이름. 각 1대."
+  type = map(object({
+    image_name = string
+    family     = string
+    ssh_user   = string
+    count      = number
+  }))
+  default = {
+    centos6 = {
+      image_name = "centos6_x64_uefi_10G"
+      family     = "rhel"
+      ssh_user   = "centos"
+      count      = 1
+    }
+    ubuntu18 = {
+      image_name = "ubuntu18.04_x64_uefi_2.2G"
+      family     = "ubuntu"
+      ssh_user   = "ubuntu"
+      count      = 1
     }
   }
 }

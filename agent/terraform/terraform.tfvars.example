@@ -10,6 +10,17 @@ agent_subnet_name = "target-vms"
 # openstack server show engine-main -f json | jq '.security_groups'
 bastion_sg_name = "TODO"
 
+# ── 멀티 NIC 추가 네트워크 (패턴 A) ───────────────────────────────
+# 네트워크 시각화 기능 검증용 — 각 agent를 여러 서브넷에 동시 소속(멀티 NIC).
+# 네트워크·서브넷은 Horizon에서 먼저 생성하고 이름으로 참조 (Terraform 생성 안 함).
+# 키 = NIC 라벨(port 이름·output에 사용). 모든 agent에 일괄 부착됨.
+# 비워두면(기본 {}) 기존 단일 NIC 그대로.
+#
+# agent_extra_networks = {
+#   net-a = { network_name = "viz-net-a", subnet_name = "viz-subnet-a" }
+#   net-b = { network_name = "viz-net-b", subnet_name = "viz-subnet-b" }
+# }
+
 # ── keypair ───────────────────────────────────────────────────────
 keypair_name = "engine-key"
 
@@ -33,5 +44,13 @@ flavor_agent = "c1_m1_r30"
 # }
 #
 # Windows VM은 별도 windows.tf에서 관리 — `windows_vm_enabled = true`로 활성화.
+# 기본 windows_os_map: windows2022 ×7 + windows2008 ×1(legacy). count·이미지 override 가능.
 # OpenStack 이미지 가용성에 따라 image_name 갱신 필요:
 #   openstack image list --status active
+
+# ── 레거시 OS (ADR-0013) ──────────────────────────────────────────
+# 기본 agent_legacy_enabled = true → centos6·ubuntu18(+win2008) 각 1대 생성.
+# primary=agent-subnet, secondary=agent-legacy(network stack 선행 apply 필요).
+# 비활성: agent_legacy_enabled = false
+#
+# 적용 순서: (1) agent/terraform/network apply → (2) 본 stack apply.

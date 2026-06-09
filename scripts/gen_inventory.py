@@ -90,14 +90,8 @@ def gen_agent_inventory(agent_out: dict, engine_out: dict) -> str:
     by_os: dict[str, list] = dict(agent_out["agent_vms_by_os"]["value"])
     engine_mq_host = engine_out["engine_vm_private_ip_for_agent"]["value"]
 
-    # windows_vm은 windows.tf의 별도 resource — agent_vms output에 포함되지 않음.
-    # 활성화된 경우만 inventory에 병합.
-    win = agent_out.get("windows_vm", {}).get("value")
-    if win and win.get("ip"):
-        key = "windows2022-1"
-        agent_vms[key] = win
-        by_family.setdefault(win["family"], []).append(key)
-        by_os.setdefault(win["os_key"], []).append(key)
+    # windows·레거시 VM은 이제 terraform output(agent_vms/by_family/by_os)에 통합됨
+    # (windows.tf map 기반·legacy 블록). 별도 병합 불요.
 
     lines = [
         "# 자동 생성 파일 — `./scripts/gen-inventory.sh`이 매번 덮어쓰기",
@@ -177,9 +171,7 @@ def main():
     if args.scope in ("all", "agent"):
         agent_out = tf_output(AGENT_TF)
         AGENT_INV.write_text(gen_agent_inventory(agent_out, engine_out))
-        n_agent_linux = agent_out.get("agent_total_count", {}).get("value", 0)
-        win = agent_out.get("windows_vm", {}).get("value")
-        n_agent = n_agent_linux + (1 if win and win.get("ip") else 0)
+        n_agent = agent_out.get("agent_total_count", {}).get("value", 0)
         print(f"OK  {AGENT_INV.relative_to(REPO_ROOT)}   ({n_agent} hosts)")
 
 

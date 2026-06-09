@@ -1,0 +1,4 @@
+# Windows Server 2008 (legacy) agent: Linux service roles not applicable.
+# 연결(WinRM)·바이너리 경로는 windows.yml(공통)에서 상속.
+# 주의: 2008은 cloudbase-init/WinRM(PS 2.0) 미지원 가능 — WinRM 연결 자체가 실패할 수 있음(지원 확인 대상).
+agent_services: []
