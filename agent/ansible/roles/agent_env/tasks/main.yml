@@ -72,8 +72,20 @@
       value: "{{ agent_drain_term_sec | string }}"
     - name: AGENT_DRAIN_PUBLISH_SEC
       value: "{{ agent_drain_publish_sec | string }}"
+    - name: WORKER_STATE_DIR
+      value: "{{ agent_worker_state_dir }}"
+    - name: WORKER_TMP_DIR
+      value: "{{ agent_worker_tmp_dir }}"
   when: ansible_system == 'Win32NT'
   notify: restart AssessmentAgent
+
+# WORKER_STATE_DIR 실존 필수 — worker가 download·results·done·running 마커를 여기 쓴다.
+# (TMP_DIR=C:\Windows\Temp는 시스템 기본 존재라 생성 불요)
+- name: Create worker state directory (Windows)
+  ansible.windows.win_file:
+    path: "{{ agent_worker_state_dir }}"
+    state: directory
+  when: ansible_system == 'Win32NT'
 
 - name: Set MQ credentials (Windows)
   ansible.windows.win_environment:

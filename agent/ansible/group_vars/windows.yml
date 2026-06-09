@@ -15,3 +15,8 @@ agent_binary_filename: assessment-agent.exe
 agent_service_name: AssessmentAgent
 agent_binary_fetch_mode: local_file
 agent_binary_verify_checksum: false
+
+# worker state/tmp — Windows 경로 (Linux 기본값 /var/lib/agent-worker·/tmp은 Windows에서 무효).
+# worker가 다운로드·results·done·running 마커를 여기 쓴다.
+agent_worker_state_dir: 'C:\ProgramData\assessment-agent\worker'
+agent_worker_tmp_dir: 'C:\Windows\Temp'
