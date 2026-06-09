@@ -20,31 +20,30 @@
 |---|---|---|
 | 1 | `versions.tf` + `providers.tf` | `terraform init` → 자원 0개 plan 검증 |
 | 2 | `data.tf` | network·subnet data source 선언 (Horizon 자원 참조) |
-| 3 | `security_groups.tf` | SG 정의 (API·MQ·Cache·DB·Consumer·Agent·AI) |
-| 4 | `instances.tf` | 엔진 VM + Port (API·MQ·Cache·DB·Consumer·AI) |
-| 5 | `volumes.tf` | Cinder 볼륨 (MQ·DB 데이터용) + attach |
-| 6 | `floating_ips.tf` | API VM에 FIP |
+| 3 | `security_groups.tf` | SG 정의 (engine·agent·ai 3종) |
+| 4 | `instances.tf` | engine-vm + ai-vm + Port |
+| 5 | `volumes.tf` | Cinder 볼륨 db 30 GB·mq 20 GB → **engine-vm에 attach** |
+| 6 | `floating_ips.tf` | engine-vm에 FIP (API :8000) |
 | 7 | `outputs.tf` | IP들 (Ansible inventory 입력) |
 | 8 | `agent/terraform/instances.tf` | Agent VM N대 + cloud-init user-data |
 
 ## 2. Ansible 단계 (bastion)
 
+> engine은 단일 VM의 docker compose (ADR-0010). 컴포넌트별 playbook은 `playbook-engine.yml` 1개로 통합.
+
 | 순서 | playbook | 작업 |
 |---|---|---|
-| 9 | `inventory.yml` | `scripts/gen-inventory.sh`로 생성 (Terraform output 기반) |
-| 10 | `playbook-db.yml` | Cinder 마운트 + PGDG repo + postgresql apt + 데이터 디렉토리 이전 + systemd |
-| 11 | `playbook-mq.yml` | Cinder 마운트 + rabbitmq-server apt + mnesia 디렉토리 이전 + systemd |
-| 12 | `playbook-cache.yml` | redis-server apt + systemd |
-| 13 | `playbook-api.yml` | wheel install + alembic upgrade head (`app_run_alembic: true`) + systemd |
-| 14 | `playbook-consumer.yml` | wheel install + systemd (alembic 안 함) |
-| 15 | `playbook-ai.yml` | Ollama 설치 + 모델 pull + systemd (TBD) |
-| 16 | `playbook-agent.yml` | agent 바이너리 배포 (Linux only — Windows playbook 미구현) |
-| 17 | `playbook-local-services.yml` | Agent VM 로컬 PostgreSQL·Redis 설치 (TBD) |
+| 9 | `inventory.yml` | `python3 scripts/gen_inventory.py --scope engine` (Terraform output 기반) |
+| 10 | `playbook-engine.yml` | docker-ce 설치 + Cinder mkfs/mount(`/mnt/pgdata`·`/mnt/mqdata`) + release `docker-compose.yml` 다운로드 + `.env` 렌더 + `docker compose pull` → `up -d` (migrate→api·consumer·pg·mq·redis) |
+| 11 | `playbook-ai.yml` | Ollama 설치 + 모델 pull(`gemma2:2b`) + diagnostic-worker |
+| 12 | `agent/ansible/site.yml` | agent 바이너리·env·service + 더미 서비스 + 부하 + health-check (Linux·Windows) |
+
+> 위 9~11은 release 발행 시 self-hosted runner가 `repository_dispatch`로 자동 실행 (ADR-0011). 수동 시에만 직접 호출.
 
 ## 사전 점검
 
 - `clouds.yaml` (mode 0600): `~/.config/openstack/`
 - `engine-key.pem` (mode 0400): `~/.ssh/`
 - `.vault-pass` (mode 0400): `~/`
-- `engine/ansible/files/wheels/`에 wheel 사전 복사
+- engine 이미지: GHCR pull (runner outbound) 또는 현장은 `docker save` tar 동봉 — wheel 사전 복사 불필요
 - `agent/ansible/files/binaries/`에 agent 바이너리 사전 복사

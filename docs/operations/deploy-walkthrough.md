@@ -59,7 +59,9 @@ ansible-vault view group_vars/all/vault.yml | head
 
 ---
 
-## 2. engine VM 6대 생성 — Terraform
+## 2. engine·ai VM 생성 — Terraform
+
+ADR-0010으로 engine stack은 **단일 VM의 docker compose**. terraform이 만드는 engine-side VM은 2대(engine·ai).
 
 ```bash
 cd ~/assessment-infra/engine/terraform
@@ -67,6 +69,7 @@ cd ~/assessment-infra/engine/terraform
 # 첫 실행만
 cp terraform.tfvars.example terraform.tfvars
 $EDITOR terraform.tfvars   # network/keypair 이름 등 환경별 값 입력
+# (자동 배포 시엔 ENGINE_TFVARS GitHub secret이 이 파일을 대체 — internal_cidr 등 따옴표 주의)
 
 terraform init
 terraform plan -out=plan.out
@@ -77,12 +80,8 @@ terraform apply plan.out
 
 | VM | 책임 | FIP | Cinder |
 |---|---|:---:|:---:|
-| api-vm | uvicorn web 엔트리 + alembic | ✓ | — |
-| consumer-vm | `server.*` + `task.result` consume | — | — |
+| engine-vm | docker compose: api·consumer·migrate·postgres·rabbitmq·redis | ✓ (:8000) | db 30 GB(`/mnt/pgdata`) + mq 20 GB(`/mnt/mqdata`) |
 | ai-vm | Ollama + diagnostic-worker | — | — |
-| mq-vm | RabbitMQ | — | 20 GB |
-| db-vm | PostgreSQL + TimescaleDB | — | 30 GB |
-| cache-vm | Redis | — | — |
 
 자원 ID는 `terraform.tfstate` (mode `0600`, git ignore).
 
@@ -105,22 +104,27 @@ ssh-keygen -R <old-ip>
 
 ---
 
-## 4. engine 배포 — Ansible (순서 의존)
+## 4. engine 배포 — Ansible (compose)
+
+컴포넌트 간 기동 순서는 compose의 `depends_on: service_healthy` + `migrate` init-container가 담당 — playbook은 1개.
 
 ```bash
 cd ~/assessment-infra/engine/ansible
 
-# 의존성: db → mq → cache → api → consumer → ai
-ansible-playbook playbook-db.yml       # PostgreSQL + TimescaleDB + 계정·DB 생성
-ansible-playbook playbook-mq.yml       # RabbitMQ + vhost·user 생성
-ansible-playbook playbook-cache.yml    # Redis
+ansible-playbook -i inventory.yml playbook-engine.yml \
+  --vault-password-file ~/.vault-pass \
+  --extra-vars "engine_version=X.Y.Z ghcr_token=<GHCR_PAT>"
+#   → docker-ce 설치 + Cinder mount + release compose 다운로드
+#   → .env 렌더(vault inject) → docker compose pull → up -d
 
-ansible-playbook playbook-api.yml      # alembic 1회 + systemd: assessment-api
-ansible-playbook playbook-consumer.yml # systemd: assessment-consumer
-ansible-playbook playbook-ai.yml       # Ollama + systemd: assessment-diagnostic
+ansible-playbook -i inventory.yml playbook-ai.yml \
+  --vault-password-file ~/.vault-pass --extra-vars "engine_version=X.Y.Z ghcr_token=<...>"
+#   → Ollama + 모델 pull + diagnostic-worker
 ```
 
-각 playbook 이 inject 하는 env 카탈로그는 `docs/operations/env-engine.md`.
+> 자동 배포(권장): release 발행 시 self-hosted runner가 위를 `repository_dispatch`로 실행 (ADR-0011). 수동 재트리거는 `gh api repos/:owner/:repo/dispatches -f event_type=engine-release -F client_payload[engine_version]=X.Y.Z`.
+
+inject 되는 env 카탈로그는 `docs/operations/env-engine.md`.
 
 ### 자주 걸리는 곳
 
@@ -197,19 +201,24 @@ agent 메시지 흐름 상세: `docs/architecture/agent-publish.md`.
 bastion 에서 ProxyJump 로 각 VM 접속 후:
 
 ```bash
-# api
-ssh api-vm.engine
-sudo systemctl status assessment-api
-sudo head -20 /opt/assessment/assessment-api.env
-# APP_ENV=production, LOG_FORMAT=json, RABBITMQ_EXCHANGE=assessment 등
+# engine-vm — compose stack 전체
+ssh engine-vm.engine
+cd /opt/assessment   # compose_dir
+sudo docker compose ps             # api·consumer·postgres·rabbitmq·redis 모두 Up/healthy
+sudo head -20 .env                 # APP_ENV=production, POSTGRES_HOST=postgres, RABBITMQ_EXCHANGE 등
+sudo docker compose logs api -n 50
+sudo docker compose logs consumer -n 50
+curl -sf http://127.0.0.1:8000/health   # 200
 
-# consumer
-ssh consumer-vm.engine
-sudo journalctl -u assessment-consumer -n 50
+# broker (engine-vm의 rabbitmq 컨테이너)
+sudo docker compose exec rabbitmq rabbitmqctl list_queues name messages consumers
+# server.inventory/metrics/error: consumers > 0
+# agent.tasks.<composite_id>: 30개+ 떠 있어야 정상
 
 # ai-vm
 ssh ai-vm.engine
-sudo systemctl status ollama assessment-diagnostic
+sudo docker compose ps             # diagnostic-worker Up
+sudo systemctl status ollama
 curl -sf http://127.0.0.1:11434/api/tags  # gemma2:2b 표시
 
 # agent
@@ -218,23 +227,19 @@ sudo systemctl status assessment-agent
 sudo journalctl -u assessment-agent -n 30
 # "loop mode: interval=60s, ..., worker=on" 보이면 정상
 # "RABBITMQ_WORKER_USER unset — worker disabled" 가 보이면 ❌
-
-# broker
-ssh mq-vm.engine
-sudo rabbitmqctl list_queues name messages consumers
-# server.inventory/metrics/error: consumers > 0
-# agent.tasks.<composite_id>: 30개+ 떠 있어야 정상
 ```
 
 ---
 
 ## 9. 작동 흐름 한눈에
 
+> engine-vm 내부(api·consumer·rabbitmq·postgres·redis)는 모두 같은 호스트의 compose 서비스. 아래 `[engine-vm: …]`는 그 안의 컨테이너.
+
 ```
-[운영자] → api-vm POST /tasks/install
+[운영자] → engine-vm: api  POST /tasks/install
    │ publish to (assessment.tasks, task.install.<composite_id>)
    ▼
-[mq-vm]
+[engine-vm: rabbitmq]
    │ route to agent.tasks.<composite_id> 큐
    ▼
 [agent worker on host #N]
@@ -242,21 +247,21 @@ sudo rabbitmqctl list_queues name messages consumers
    │ tar 추출 → ZDM_PACKAGE_SCRIPT 실행 (sudo)
    │ publish to (assessment.tasks, task.result)
    ▼
-[consumer-vm] → DB 기록
+[engine-vm: consumer] → postgres 기록
 
 [agent collector on host #N]  (60s 주기)
    │ publish to (assessment, server.metrics)
    ▼
-[consumer-vm] → TimescaleDB metrics 테이블
+[engine-vm: consumer] → TimescaleDB(postgres) metrics 테이블
 
-[운영자] → api-vm UI 에서 diagnostic 요청
-   │ publish to (diagnostic.request)  (engine 내부)
+[운영자] → engine-vm: api UI 에서 diagnostic 요청
+   │ publish to (diagnostic.request)
    ▼
-[ai-vm diagnostic-worker]
+[ai-vm: diagnostic-worker]  (engine-vm의 rabbitmq/postgres/redis로 접속)
    │ Ollama 호출 (http://127.0.0.1:11434, gemma2:2b)
    │ publish to (diagnostic.result)
    ▼
-[api-vm] → 사용자 응답
+[engine-vm: api] → 사용자 응답
 ```
 
 ---
@@ -275,17 +280,20 @@ sudo rabbitmqctl list_queues name messages consumers
 
 ## 11. 재배포 (코드만 변경됐을 때)
 
-### engine wheel 교체
+### engine 버전 교체 (compose)
 
 ```bash
-# 1) bastion에서 새 wheel 을 engine/ansible/files/wheels/ 에 복사
-# 2) engine/ansible/group_vars/all/engine.yml 의 engine_version 갱신
-ansible-playbook playbook-api.yml      # alembic 자동 재실행
-ansible-playbook playbook-consumer.yml
-ansible-playbook playbook-ai.yml
+# 권장: assessment-engine repo가 새 release(vX.Y.Z) 발행 → runner 자동 배포
+# 수동:
+gh api repos/:owner/:repo/dispatches \
+  -f event_type=engine-release -F client_payload[engine_version]=X.Y.Z
+# 또는 bastion에서 직접:
+#   engine/ansible/group_vars/all/engine.yml 의 engine_version 갱신 후
+#   ansible-playbook -i inventory.yml playbook-engine.yml --vault-password-file ~/.vault-pass \
+#     --extra-vars "engine_version=X.Y.Z ghcr_token=<...>"
 ```
 
-handler dedup 으로 인해 unit·env 파일이 실제로 변경된 host 만 재시작.
+`docker compose pull`로 새 이미지를 받고 `up -d`가 변경된 서비스만 재생성. alembic은 `migrate` init-container가 자동 재실행.
 
 ### agent 바이너리 교체
 
