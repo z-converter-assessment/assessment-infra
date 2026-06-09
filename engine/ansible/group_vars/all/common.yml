@@ -12,6 +12,10 @@ mq_volume_device: /dev/vdc
 db_mount_path: /mnt/pgdata
 mq_mount_path: /mnt/mqdata
 
+# timescaledb-ha 컨테이너가 initdb 를 실행하는 postgres uid/gid — PGDATA_HOST(host bind) 소스
+# 소유권 지정에 사용. 이미지의 postgres 사용자가 1000:1000. 이미지 교체 시 함께 점검.
+postgres_container_uid: 1000
+
 # Docker Compose 작업 디렉토리
 compose_dir: /opt/engine-compose
 
