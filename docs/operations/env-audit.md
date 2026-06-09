@@ -17,8 +17,10 @@
 - **Medium 8**: ZDM 키군 전부 주입.
 - **Medium 11**: routing/diagnostic 키 + `SQLALCHEMY_ECHO` 주입(완료).
 - **Medium 9 일부 / 12 일부 / Low 15 일부**: `WEB_PORT`·`INSTALL_TIMEOUT_SEC`(engine), `AGENT_INTERVAL_SEC`·`AGENT_INVENTORY_REFRESH_SEC`·`AGENT_DRAIN_{GRACE,TERM,PUBLISH}_SEC`·`RABBITMQ_TLS_ENABLED=false`(agent, Linux+Windows) 주입. systemd `TimeoutStopSec=900` 정합.
+- **Windows worker 정합**: `RABBITMQ_WORKER_*`·`WORKER_TASK_*`·`WORKER_DOWNLOAD_ALLOWED_HOSTS` 주입(worker 비활성 해소) + `WORKER_STATE_DIR`/`WORKER_TMP_DIR`를 Windows 경로로 주입·state dir 선생성. 키 이름은 Linux와 동일(`windows-agent/deploy/agent.env.example` 확인).
+- **R-5 해소**: Windows `win_environment` 루프의 routing key 리터럴(`assessment`·`server.*`)을 `mq_exchange`·`mq_routing_key_*` 변수 참조로 변경 — Linux와 단일 출처(`vars.yml`)로 통일, OS 간 드리프트 제거(렌더 값 동일, 동작 무변화).
 
-근거 커밋: engine contract/v0.5.0(`21326cd`), agent 즉시수정 4건(`967a7d1` merge), agent 권장수정(`8a26683` merge).
+근거 커밋: engine contract/v0.5.0(`21326cd`), agent 즉시수정 4건(`967a7d1` merge), agent 권장수정(`8a26683` merge), Windows worker dir(`b1aaec3` merge), R-5 변수화(`6dce6b4` merge).
 
 ---
 
@@ -30,8 +32,10 @@
 | R-2 | engine web | `WEB_RELOAD`(base default false 충분), `AGENT_RESTART_ALERT_THRESHOLD`(엔진 read 여부 미확인) | ⚪ | read 확정 후 필요 시 `engine.yml`로 주입 |
 | R-3 | engine | `SECRET_KEY` 실사용 검증 | 🔵 | v0.5.0 `env.example` 미수록. 부팅은 정상(extra ignore 추정) — 엔진 코드 read 여부 확인 후 미사용이면 `.env.j2`·vault에서 제거 |
 | R-4 | agent | `RABBITMQ_HEARTBEAT_SEC`(기본 60), `RABBITMQ_CONFIRM_TIMEOUT_SEC`(기본 5) | ⚪ | 기본값 충분 — 문서화만, 튜닝 필요 시 `vars.yml`로 주입 |
-| R-5 | agent (Windows) | `win_environment` 루프의 routing key가 리터럴 하드코딩(`assessment`·`server.inventory` 등) | 🔵 | Linux `agent.env.j2`는 `{{ mq_* }}` 변수화 완료. Windows 루프도 동일 변수 참조로 변경 권장(변경 시 한 곳만 수정) |
 | R-6 | agent | 전체 TLS 키군(`RABBITMQ_TLS_CA_PATH`·`VERIFY_PEER/HOSTNAME`·`CERT_PATH/KEY_PATH`) | 🔵 | 폐쇄망 plain AMQP라 N/A. `RABBITMQ_TLS_ENABLED=false`는 명시 완료. prod 외부 노출(TLS) 전환 시 도입 |
+| R-7 | agent (Windows) | secret(`RABBITMQ_PASS`·`RABBITMQ_WORKER_PASS`)이 머신 env(레지스트리)에 평문 — 로컬 전역 가독 | 🔵 | upstream은 `agent.env.local` 파일+ACL 방식. prod 강화 시 파일 방식 전환 검토 (폐쇄망이라 현재 치명적 아님) |
+
+> R-5는 해소됨(위 해소 요약 참조)되어 제거. R-7은 직전 Windows 분석에서 식별된 secret 노출로 신규 등록. (R 번호는 추적 안정성 위해 재사용·재번호 안 함)
 
 ---
 
