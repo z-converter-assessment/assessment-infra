@@ -25,7 +25,7 @@
 - name: create ollama user
   user:
     name: ollama
-    group: ollama/
+    group: ollama
     home: /usr/share/ollama
     shell: /usr/sbin/nologin
     system: true
