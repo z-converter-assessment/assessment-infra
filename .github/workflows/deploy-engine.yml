@@ -27,9 +27,12 @@ jobs:
         id: tf_plan
         run: |
           cd engine/terraform
-          terraform plan -detailed-exitcode -out=tfplan 2>&1
-          echo "exitcode=$?" >> $GITHUB_OUTPUT
-        continue-on-error: true
+          set +e
+          terraform plan -detailed-exitcode -out=tfplan
+          code=$?
+          echo "exitcode=$code" >> "$GITHUB_OUTPUT"
+          [ "$code" -eq 1 ] && exit 1   # 1=진짜 에러만 실패
+          exit 0                         # 0=변경없음 / 2=변경있음 정상 통과
 
       - name: terraform apply (변경 있을 때만)
         if: steps.tf_plan.outputs.exitcode == '2'
