@@ -9,9 +9,8 @@
 
 # Ansible — generated/secret
 **/ansible/inventory.yml
-**/ansible/group_vars/all/vault.yml
-# agent vault는 engine vault를 가리키는 symlink — 구조 보존 위해 commit
-!agent/ansible/group_vars/all/vault.yml
+# vault.yml은 ansible-vault(AES256) 암호화 후 commit — CD checkout이 워크스페이스로 확보 (ADR-0011·CLAUDE.md).
+# ~/.vault-pass만 bastion 로컬. agent vault.yml은 engine vault.yml을 가리키는 symlink.
 
 # 배포 artifact — 운영자가 bastion에서 다운로드 후 복사
 engine/ansible/files/wheels/*.whl
