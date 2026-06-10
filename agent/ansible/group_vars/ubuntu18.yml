@@ -1,0 +1,4 @@
+# Ubuntu 18.04 (legacy) — 기본 python3.6은 모던 ansible-core 모듈 실행 불가
+# (from __future__ import annotations → 3.7+ 필요). raw로 python3.8 선설치 후 인터프리터 지정.
+# 주의: python3.8엔 python3-apt 바인딩이 없어 apt 모듈은 실패 → common의 deps task는 ignore_errors로 처리.
+ansible_python_interpreter: /usr/bin/python3.8
