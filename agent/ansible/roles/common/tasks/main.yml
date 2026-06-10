@@ -79,8 +79,10 @@
   when: ansible_os_family == 'Debian'
   ignore_errors: true
 
-# agent 런타임이 inventory 수집에 사용. 없으면 폴백되지만 일부 필드 null.
+# agent 런타임이 inventory 수집에 사용. 없으면 폴백되지만 일부 필드 null → 비핵심.
 # (lsblk=util-linux. dbus-uuidgen은 패키지명이 배포판마다 달라 base image·machine-id에 의존)
+# ignore_errors: 레거시 노드(예: ubuntu18.04 python3.6→3.8)는 apt/dnf 모듈용 python 바인딩이
+# 없어 본 task가 실패할 수 있음. deps는 비핵심이므로 배포(binary·service)를 막지 않도록 무시한다.
 - name: Install base runtime dependencies (Debian)
   ansible.builtin.apt:
     name:
@@ -89,6 +91,7 @@
       - util-linux
     state: present
   when: ansible_os_family == 'Debian'
+  ignore_errors: true
 
 - name: Install base runtime dependencies (RedHat)
   ansible.builtin.dnf:
@@ -98,6 +101,7 @@
       - util-linux
     state: present
   when: ansible_os_family == 'RedHat'
+  ignore_errors: true
 
 # ── SELinux permissive (RHEL 계열만) ──────────────────────────────
 # RHEL 계열은 SELinux enforcing 기본이라, agent 가 런타임에 받은 ZDM install.sh 를
