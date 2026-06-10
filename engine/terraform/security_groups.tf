@@ -90,6 +90,17 @@ resource "openstack_networking_secgroup_rule_v2" "engine_15672_from_bastion" {
   security_group_id = openstack_networking_secgroup_v2.engine_sg.id
 }
 
+# pgAdmin UI (v0.5.0 base compose) — bastion에서 SSH 포트포워딩으로 접근
+resource "openstack_networking_secgroup_rule_v2" "engine_5050_from_bastion" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 5050
+  port_range_max    = 5050
+  remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
+  security_group_id = openstack_networking_secgroup_v2.engine_sg.id
+}
+
 # ── agent-sg ingress ──────────────────────────────────────────────
 
 resource "openstack_networking_secgroup_rule_v2" "agent_ssh" {
