@@ -82,6 +82,11 @@ resource "openstack_blockstorage_volume_v3" "win_boot" {
   name     = "agent-${each.key}-boot"
   size     = each.value.volume_size
   image_id = data.openstack_images_image_v2.windows_image[each.value.os_key].id
+
+  # 40~60GB Windows 이미지→볼륨 복사가 기본 timeout을 초과해 "context deadline exceeded" 발생.
+  timeouts {
+    create = "30m"
+  }
 }
 
 # ── Ports ─────────────────────────────────────────────────────────
@@ -133,6 +138,10 @@ locals {
     "winrm set winrm/config/service '@{AllowUnencrypted=\"true\"}'",
     "winrm set winrm/config/service/auth '@{Basic=\"true\"}'",
     "netsh advfirewall firewall add rule name=\"WinRM-HTTP-In-TCP\" protocol=TCP dir=in localport=5985 action=allow",
+    # 이미지가 평가판(ServerStandardEval·TIMEBASED_EVAL)이라 만료 시 wlms.exe 가 ~1시간 주기로
+    # 강제 셧다운한다(License Status=Notification). 폐쇄망이라 KMS/활성화 서버 도달 불가 →
+    # 첫 부팅에 평가 타이머를 리셋한다(rearm 한도 6회). 재생성 VM의 즉시 셧다운 재발 방지.
+    "cscript //nologo C:\\Windows\\System32\\slmgr.vbs /rearm",
   ])
 }
 
