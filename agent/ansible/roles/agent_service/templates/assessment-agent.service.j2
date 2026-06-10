@@ -5,8 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User={{ agent_user }}
-Group={{ agent_group }}
+# ZDM install.sh 는 worker 바이너리가 sudo 없이 직접 execve 하며 root 를 요구한다
+# (바이너리에 권한상승 로직 없음 — strings 확인: sudo/setuid 부재). 바이너리에 sudo 를
+# 넣지 않기로 한 결정에 따라 권한 통제를 인프라로 옮긴다 → 서비스 자체를 root 로 실행.
+# 비-root + sudo(ADR 모델)는 바이너리가 sudo 를 호출하지 않아 성립 불가하므로 폐기.
+User=root
+Group=root
 WorkingDirectory={{ agent_dir }}
 EnvironmentFile={{ agent_env_dir }}/agent.env
 EnvironmentFile={{ agent_env_dir }}/agent.env.local
@@ -17,9 +21,9 @@ RestartSec=5
 TimeoutStopSec={{ agent_drain_grace_sec + agent_drain_term_sec + agent_drain_publish_sec + 90 }}
 
 # hardening
-# NoNewPrivileges / CapabilityBoundingSet / AmbientCapabilities 는 의도적으로 비활성화 —
-# 진단 기능이 sudo로 권한 상승을 요구.
-PrivateTmp=yes
+# root 로 실행하므로 NoNewPrivileges/Capability* 강화는 적용하지 않는다 — 진단·ZDM install 이
+# 호스트 전반 변경을 요구. PrivateTmp 도 제거: 사설 /tmp 네임스페이스가 ZDM install.sh 의
+# 추출물·설치 데몬을 host /tmp 에서 격리해 설치를 깨뜨릴 수 있다(일반 root 설치와 동작 일치).
 RestrictRealtime=yes
 
 [Install]
