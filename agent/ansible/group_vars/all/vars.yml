@@ -12,7 +12,7 @@ agent_env_dir: /etc/assessment-agent
 # Binary fetch mode: github_release | local_file
 agent_binary_fetch_mode: local_file
 agent_github_repo: "z-converter-assessment/assessment-agent"
-agent_version: "latest"
+agent_version: "1.1.0"
 agent_binary_filename: assessment-agent-linux-x86_64
 
 # Engine MQ (host injected by gen_inventory.py)
