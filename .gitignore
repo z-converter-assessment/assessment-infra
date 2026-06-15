@@ -6,6 +6,11 @@
 **/terraform.tfvars
 *.tfvars
 !*.tfvars.example
+**/tfplan
+**/tfplan*
+
+# Python
+**/__pycache__/
 
 # Ansible — generated/secret
 **/ansible/inventory.yml
