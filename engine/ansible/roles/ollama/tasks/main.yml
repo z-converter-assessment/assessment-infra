@@ -55,11 +55,21 @@
     content: |
       [Service]
       Environment="OLLAMA_HOST={{ ollama_host }}:{{ ollama_port }}"
-  notify:
-    - reload systemd
-    - restart ollama
+  register: ollama_override
 
-- name: ensure ollama service started
+# handler 의존 제거 — override 직후 inline으로 daemon-reload+restart를 보장한다.
+# (회귀: install script가 먼저 띄운 데몬을 play-end handler가 재기동해야 하는데,
+#  뒤 태스크 실패로 play abort 시 handler 미실행 → 기본 127.0.0.1 바인딩 잔존 →
+#  engine 원격 접속 불가(ConnectError). inline 실행으로 abort 영향 제거.)
+- name: reload systemd and restart ollama (override 반영 보장)
+  when: ollama_override is changed
+  systemd:
+    name: ollama
+    daemon_reload: true
+    state: restarted
+    enabled: true
+
+- name: ensure ollama service started·enabled (override 미변경 시 baseline)
   service:
     name: ollama
     state: started
@@ -86,4 +96,11 @@
     owner: ollama
     group: ollama
   when: ollama_model not in (ollama_list.stdout | default(''))
-  notify: restart ollama
+  register: ollama_model_extract
+
+# handler 의존 제거 — 모델 추출 시 inline restart로 즉시 인식 보장
+- name: restart ollama after model import (모델 추출 시에만)
+  when: ollama_model_extract is changed
+  service:
+    name: ollama
+    state: restarted

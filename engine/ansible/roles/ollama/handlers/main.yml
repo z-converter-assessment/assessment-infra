@@ -1,8 +1,5 @@
 ---
-- name: reload systemd
-  command: systemctl daemon-reload
-
-- name: restart ollama
-  service:
-    name: ollama
-    state: restarted
+# (handler 제거됨) ollama host/port override 반영·모델 import 후 재기동은
+# tasks/main.yml 내 inline으로 daemon-reload + restart를 직접 보장한다.
+# 이유: play-end handler는 뒤 태스크 실패(play abort) 시 미실행되어 데몬이
+# install-script 기본 127.0.0.1 바인딩으로 잔존하는 회귀가 있었다.
