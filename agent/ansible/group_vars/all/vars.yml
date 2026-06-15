@@ -32,8 +32,10 @@ mq_task_result_key: "task.result"
 
 # task.install download.url host 화이트리스트 (CSV, case-insensitive exact match).
 # 비면 worker 가 모든 download reject — env-audit Critical #2.
-# 값: ZDM 서버 host. engine/ansible/group_vars/all/zdm.yml 의 zdm_default_ip 와 동일 host 유지.
-worker_download_allowed_hosts: "192.168.3.94"
+# 운영자가 모달에 입력하는 ZDM host 가 여기 등록돼 있어야 download 통과 (없으면 url_not_allowed).
+# ZDM 본체는 OS별 별도 서버 — Linux=192.168.3.92, Windows=192.168.3.94. 둘 다 등록.
+# 화이트리스트는 deploy 시점 고정(ADR-0016) — 신규 ZDM host 도입 시 agent 재배포 필요.
+worker_download_allowed_hosts: "192.168.3.92,192.168.3.94"
 
 # ── RabbitMQ TLS ──────────────────────────────────────────────────
 # engine은 plain 5672 노출(TLS 미사용)이므로 명시적으로 끈다.
