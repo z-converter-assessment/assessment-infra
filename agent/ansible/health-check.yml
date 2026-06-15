@@ -2,11 +2,29 @@
   hosts: agent_workers
   gather_facts: false
   tasks:
-    - name: ping
+    # 연결 방식으로 OS 분기 (gather_facts: false라 ansible_system 미사용).
+    # windows 그룹은 group_vars에서 ansible_connection=winrm, linux는 ssh.
+    - name: ping (Linux)
       ansible.builtin.ping:
+      when: ansible_connection != 'winrm'
 
-    - name: check agent service
+    - name: ping (Windows)
+      ansible.windows.win_ping:
+      when: ansible_connection == 'winrm'
+
+    - name: check agent service (Linux)
       ansible.builtin.systemd:
         name: assessment-agent
       register: svc
       failed_when: svc.status.ActiveState != 'active'
+      when: ansible_connection != 'winrm'
+
+    - name: check agent service (Windows)
+      ansible.windows.win_service_info:
+        name: "{{ agent_service_name }}"
+      register: winsvc
+      failed_when: >-
+        not winsvc.exists or
+        (winsvc.services | length) == 0 or
+        winsvc.services[0].state != 'started'
+      when: ansible_connection == 'winrm'

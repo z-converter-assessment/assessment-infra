@@ -1,3 +1,4 @@
 collections:
   - name: community.postgresql
   - name: ansible.windows
+  - name: ansible.posix  # selinux 모듈 (RHEL 계열 permissive 설정)
