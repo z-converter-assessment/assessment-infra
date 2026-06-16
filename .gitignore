@@ -20,8 +20,8 @@
 # 배포 artifact — 운영자가 bastion에서 다운로드 후 복사
 engine/ansible/files/wheels/*.whl
 engine/ansible/files/wheels/SHA256SUMS
-agent/ansible/files/binaries/assessment-agent-linux
-agent/ansible/files/binaries/assessment-agent.exe
+agent/ansible/files/binaries/*
+!agent/ansible/files/binaries/.gitkeep
 engine/ansible/files/ollama/ollama-models.tar.gz
 
 # 로컬 보존 문서 (commit 안 함)
