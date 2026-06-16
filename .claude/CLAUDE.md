@@ -42,6 +42,7 @@
 | `docs/operations/deploy-walkthrough.md` | 반복 배포 시나리오 (vault → engine → agent 순서) |
 | `docs/operations/env-engine.md` | engine VM 환경변수 카탈로그 |
 | `docs/operations/agent-test-environment.md` | agent 테스트 플릿 구성·환경변수 주입 경로·주입 변수·실행 권한 |
+| `docs/operations/agent-binary-image-coverage.md` | agent 바이너리(v1.2.0)↔glance 이미지 커버리지·BIOS/UEFI별 mq·zdm 발행 검증 매트릭스 |
 | `docs/operations/env-agent.md` | (→ agent-test-environment.md로 통합된 포인터) |
 | `docs/operations/env-audit.md` | (Deprecated — 대부분 해소, 잔여 항목만 추적) |
 | `docs/operations/troubleshooting.md` | 작업 중 문제 해결 |
