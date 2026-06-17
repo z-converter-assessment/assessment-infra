@@ -71,7 +71,7 @@ output "agent_extra_nics" {
     for vmk, vm in local.agent_vms :
     vmk => {
       for nick, net in var.agent_extra_networks :
-      nick => openstack_networking_port_v2.agent_extra_port["${vmk}__${nick}"].all_fixed_ips[0]
+      nick => try(openstack_networking_port_v2.agent_extra_port["${vmk}__${nick}"].all_fixed_ips[0], null)
     }
   }
 }
