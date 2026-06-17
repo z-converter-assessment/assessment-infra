@@ -79,25 +79,27 @@ resource "openstack_networking_secgroup_rule_v2" "engine_6379_from_ai" {
   security_group_id = openstack_networking_secgroup_v2.engine_sg.id
 }
 
-# RabbitMQ Management UI — bastion에서 SSH 포트포워딩으로 접근
+# RabbitMQ Management UI — 전체 ingress 허용(0.0.0.0/0). 운영자 요청으로 개방.
+# 주의: 인터넷 전체에 MQ 콘솔 노출. 자격증명만이 유일 방어선.
 resource "openstack_networking_secgroup_rule_v2" "engine_15672_from_bastion" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 15672
   port_range_max    = 15672
-  remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
+  remote_ip_prefix  = "0.0.0.0/0"
   security_group_id = openstack_networking_secgroup_v2.engine_sg.id
 }
 
-# pgAdmin UI (v0.5.0 base compose) — bastion에서 SSH 포트포워딩으로 접근
+# pgAdmin UI (v0.5.0 base compose) — 전체 ingress 허용(0.0.0.0/0). 운영자 요청으로 개방.
+# 주의: 인터넷 전체에 DB 관리 UI 노출. 자격증명만이 유일 방어선.
 resource "openstack_networking_secgroup_rule_v2" "engine_5050_from_bastion" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 5050
   port_range_max    = 5050
-  remote_group_id   = data.openstack_networking_secgroup_v2.bastion_sg.id
+  remote_ip_prefix  = "0.0.0.0/0"
   security_group_id = openstack_networking_secgroup_v2.engine_sg.id
 }
 
